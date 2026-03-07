@@ -1,0 +1,11 @@
+{
+  "sddVersion": "1.0",
+  "specDir": "specs",
+  "constitutionPath": ".specify/memory/constitution.md",
+  "multiAgentMode": false,
+  "coordinationMode": "single-agent",
+  "taskClaimTimeout": 3600,
+  "agentIdFormat": "agent-{timestamp}",
+  "requireReview": true,
+  "autoArchive": false
+}
