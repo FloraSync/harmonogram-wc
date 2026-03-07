@@ -1,0 +1,27 @@
+{
+  "name": "@harmonogram/core",
+  "version": "0.1.0",
+  "description": "Headless core contracts and schedule engine primitives for Harmonogram",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "echo \"No tests for @harmonogram/core yet\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

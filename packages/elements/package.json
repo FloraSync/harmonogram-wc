@@ -1,0 +1,32 @@
+{
+  "name": "@harmonogram/elements",
+  "version": "0.1.0",
+  "description": "Standards-based custom elements for Harmonogram",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint src",
+    "test": "wtr --coverage --config web-test-runner.config.js",
+    "test:watch": "wtr --watch --config web-test-runner.config.js",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+  },
+  "dependencies": {
+    "lit": "^3.3.2"
+  }
+}

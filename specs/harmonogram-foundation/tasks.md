@@ -1,16 +1,18 @@
 # Task Breakdown: Harmonogram Foundation
 
 ## Work Package 0: Governance And Scaffold Reset
-**Status**: available
-**Owner**: none
+**Status**: completed
+**Owner**: agent-codex-20260307T065536Z
+**Claimed At**: 2026-03-07T06:55:36Z
+**Completed At**: 2026-03-07T07:17:31Z
 **Dependencies**: []
 **Estimated Effort**: 60-90 min
 
 ### Tasks:
-- [ ] Create the multi-package workspace scaffold under `packages/`, `docs/`, and shared tooling directories.
-- [ ] Preserve the current starter component behind characterization tests before moving files.
-- [ ] Add or update scripts for workspace build, lint, test, and type-check flows.
-- [ ] Wire package publishing expectations into repo structure and metadata.
+- [x] Create the multi-package workspace scaffold under `packages/`, `docs/`, and shared tooling directories.
+- [x] Preserve the current starter component behind characterization tests before moving files.
+- [x] Add or update scripts for workspace build, lint, test, and type-check flows.
+- [x] Wire package publishing expectations into repo structure and metadata.
 
 **Verification**: Workspace installs cleanly, root scripts run, and starter behavior remains covered by tests.
 

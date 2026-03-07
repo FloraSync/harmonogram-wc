@@ -2,9 +2,15 @@
 
 Harmonogram is being reshaped into a universal planning surface: a framework-agnostic web-component system for time-phased work, dependencies, operating windows, projections, and schedule harmony.
 
-## Current State
+## Workspace Layout
 
-This repository currently contains a minimal starter custom element. The product direction, architecture, and delivery sequence now live in spec-driven artifacts instead of an implementation-first PRD.
+WP0 introduces a multi-package workspace scaffold:
+
+- `packages/core`: headless contracts and scheduling engine boundary.
+- `packages/elements`: standards-based custom elements (current starter component lives here).
+- `packages/examples`: integration and domain reference examples scaffold.
+- `docs`: integrator documentation.
+- `tooling`: shared tooling and release helpers.
 
 ## Start Here
 
@@ -15,14 +21,11 @@ This repository currently contains a minimal starter custom element. The product
 - Technical plan: [`specs/harmonogram-foundation/plan.md`](/Users/shoe/Code/harmonogram-wc/specs/harmonogram-foundation/plan.md)
 - Work packages: [`specs/harmonogram-foundation/tasks.md`](/Users/shoe/Code/harmonogram-wc/specs/harmonogram-foundation/tasks.md)
 
-## Product Direction
+## Root Commands
 
-Harmonogram should outperform a traditional Gantt by showing:
+- `npm run build`
+- `npm run lint`
+- `npm run test`
+- `npm run typecheck`
 
-- planned, actual, and projected time in the same surface,
-- interruptions and split work instead of only uninterrupted bars,
-- dependencies, critical sequence, and blocked flow,
-- calendars, windows, and exceptions,
-- harmony insights such as overlap, idle gaps, risk, and capacity tension.
-
-The first reference implementation will target crop tracking, but the core model stays universal.
+All root commands delegate to workspace packages.

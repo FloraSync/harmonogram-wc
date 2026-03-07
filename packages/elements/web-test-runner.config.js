@@ -5,10 +5,9 @@ export default {
   files: 'src/**/*.test.ts',
   nodeResolve: true,
   browsers: [playwrightLauncher({ product: 'chromium' })],
-  plugins: [esbuildPlugin({ ts: true, tsconfig: './tsconfig.json' })],
+  plugins: [esbuildPlugin({ ts: true })],
   coverageConfig: {
     include: ['src/**/*.ts'],
     exclude: ['src/**/*.test.ts'],
   },
 };
-

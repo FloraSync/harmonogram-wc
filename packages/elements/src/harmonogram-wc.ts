@@ -1,5 +1,4 @@
 import { LitElement, html, css } from 'lit';
-import { property, customElement } from 'lit/decorators.js';
 
 /**
  * Represents a single task/event on the schedule.
@@ -34,8 +33,12 @@ export interface HarmonogramTask {
  * <harmonogram-wc title="Project Timeline"></harmonogram-wc>
  * ```
  */
-@customElement('harmonogram-wc')
 export class HarmonogramWc extends LitElement {
+  static override properties = {
+    title: { type: String },
+    tasks: { type: Array, attribute: false },
+  };
+
   static override styles = css`
     :host {
       display: block;
@@ -83,12 +86,15 @@ export class HarmonogramWc extends LitElement {
   `;
 
   /** The title displayed in the component header. */
-  @property({ type: String })
-  override title = 'Harmonogram';
-
+  declare title: string;
   /** The list of tasks to display on the schedule. */
-  @property({ type: Array, attribute: false })
-  tasks: HarmonogramTask[] = [];
+  declare tasks: HarmonogramTask[];
+
+  constructor() {
+    super();
+    this.title = 'Harmonogram';
+    this.tasks = [];
+  }
 
   private _handleTaskClick(task: HarmonogramTask): void {
     this.dispatchEvent(
@@ -129,6 +135,10 @@ export class HarmonogramWc extends LitElement {
       </div>
     `;
   }
+}
+
+if (!customElements.get('harmonogram-wc')) {
+  customElements.define('harmonogram-wc', HarmonogramWc);
 }
 
 declare global {
