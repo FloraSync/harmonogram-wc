@@ -1,0 +1,57 @@
+{
+  "name": "harmonogram-wc",
+  "version": "0.1.0",
+  "description": "Harmonogram WC - a TypeScript-based WebComponent for schedule visualisation, better than a GANTT chart",
+  "keywords": [
+    "webcomponent",
+    "web-component",
+    "custom-element",
+    "gantt",
+    "schedule",
+    "harmonogram",
+    "typescript",
+    "lit"
+  ],
+  "license": "MIT",
+  "author": "codecastles-org",
+  "type": "module",
+  "main": "dist/harmonogram-wc.cjs",
+  "module": "dist/harmonogram-wc.js",
+  "exports": {
+    ".": {
+      "import": "./dist/harmonogram-wc.js",
+      "require": "./dist/harmonogram-wc.cjs"
+    }
+  },
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "rollup -c rollup.config.js",
+    "dev": "rollup -c rollup.config.js --watch",
+    "lint": "eslint src",
+    "test": "wtr --coverage",
+    "test:watch": "wtr --watch"
+  },
+  "peerDependencies": {
+    "lit": "^3.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@open-wc/testing": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@web/dev-server-esbuild": "^1.0.5",
+    "@web/test-runner": "^0.20.2",
+    "@web/test-runner-playwright": "^0.11.1",
+    "eslint": "^10.0.3",
+    "lit": "^3.3.2",
+    "rollup": "^4.59.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  }
+}
