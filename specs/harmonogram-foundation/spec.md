@@ -32,7 +32,7 @@ It is a visual planning system that helps users answer four higher-order questio
 - As a planner, I want to zoom between hours, days, weeks, months, and seasonal windows so one component can support both tactical and strategic planning.
 - As an operator, I want to see what is blocked, late, overlapping, or waiting so I can act on the next constraint instead of scanning a wall of bars.
 - As an analyst, I want to compare planned, actual, and projected timelines so I can understand drift and communicate risk early.
-- As a farm operations lead, I want to model planting, treatments, scouting, irrigation, harvest, and pause windows by field or block so I can manage a crop season without forcing the domain into generic PM software.
+- As a farm operations lead, I want to model a planted farm group with fields as planning lanes and operations such as planting, treatments, scouting, irrigation, and harvest as time-phased work so I can manage a crop season without forcing the domain into generic PM software.
 - As an integrator, I want to drop the component into raw HTML or any major frontend stack and drive it with typed data and events so I do not need framework-specific wrappers to adopt it.
 
 ## Functional Requirements
@@ -75,7 +75,7 @@ Users must be able to filter, search, highlight, and focus subsets of the plan b
 
 ### FR10: Interactive Planning Mode
 
-In interactive mode, users must be able to request edits such as create, update, delete, move, resize, and split operations, with undo/redo support for local planning sessions.
+In interactive mode, users must be able to request edits such as create, update, delete, move, resize, and split operations, with undo/redo support for local planning sessions and a controlled mode for host-owned persistence.
 
 ### FR11: Read-Only Embed Mode
 
@@ -91,7 +91,7 @@ Integrators must be able to theme the product and compose it into larger applica
 
 ### FR14: Data Exchange
 
-The product must support typed programmatic data input and practical export paths for downstream reporting or interoperability.
+The product must support typed programmatic data input and practical export paths for downstream reporting or interoperability, with `JSON`, `CSV`, and `PNG` supported in the initial release.
 
 ### FR15: Universal Adoption
 
@@ -144,4 +144,5 @@ The product must work with in-memory data and must not require a hosted service 
 - A developer can render a meaningful plan in raw HTML and in at least one framework-based example using the same package contract.
 - A planner can zoom across multiple time scales, inspect dependencies, filter the plan, and identify out-of-harmony work without leaving the component.
 - A crop-tracking example can model field-level or block-level operations, seasonal windows, interruptions, and projections without requiring crop-specific forks in core.
+- A crop-tracking example can model a planted farm group with field-based lanes, operation work items, seasonal windows, interruptions, and projections without requiring crop-specific forks in core.
 - The product feels more expressive than a traditional Gantt chart because it can show not only sequence, but also windows, interruptions, actuals, projections, and harmony insights.

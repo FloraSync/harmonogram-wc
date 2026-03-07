@@ -52,7 +52,7 @@ This layer consumes the headless core and should not re-implement planning rules
 
 - raw HTML usage,
 - at least one framework-hosted usage example,
-- a crop-tracking reference scenario,
+- a crop-tracking reference scenario centered on planted farm groups, fields, and operations,
 - packaging smoke tests and integration fixtures.
 
 Examples are validation tools, not sources of truth.

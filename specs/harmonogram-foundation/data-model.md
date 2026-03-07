@@ -133,6 +133,8 @@ Domain-specific meaning lives in typed adapter layers or metadata conventions ab
 
 Examples for crop tracking:
 
+- `plan.metadata.farmGroupId`
+- `plan.metadata.farmGroupName`
 - `lane.metadata.fieldId`
 - `lane.metadata.blockName`
 - `item.metadata.crop`

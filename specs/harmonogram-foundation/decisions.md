@@ -35,15 +35,45 @@
 **Rationale**: The fastest path to a credible product is a great core surface with clean contracts, not a large integration matrix.  
 **Alternatives Considered**: Building collaboration and external connectors into v1.
 
-## Assumptions Pending Confirmation
+## Decision 6: V1 Supports Both Local And Host-Controlled Editing
+
+**Date**: 2026-03-07  
+**Decision**: Interactive mode in v1 will support both local-only planning sessions and host-controlled edit flows.  
+**Rationale**: This lets teams prototype and inspect edits in isolation while still supporting serious product integrations where the host owns persistence and policy.  
+**Alternatives Considered**: Local-only editing; host-controlled editing only.
+
+## Decision 7: Initial Export Set Is Narrow And Practical
+
+**Date**: 2026-03-07  
+**Decision**: The required v1 export formats are `JSON`, `CSV`, and `PNG`.  
+**Rationale**: These cover structured interchange, spreadsheet/report workflows, and visual sharing without bloating the first release.  
+**Alternatives Considered**: Adding `PDF` in v1; supporting every listed export from the start.
+
+## Decision 8: Crop Reference Example Uses Farm Group -> Field -> Operation
+
+**Date**: 2026-03-07  
+**Decision**: The crop-tracking reference implementation will model a planted farm group as the overall plan, use fields as the primary planning lanes, and represent operations as work items within those fields.  
+**Rationale**: This matches the user-described planning grain closely while preserving a universal data model.  
+**Alternatives Considered**: Block-first planning; operation-run-only lanes; crop-specific core entities.
+
+## Decision 9: V1 Includes Baseline And A Single Active Projection
+
+**Date**: 2026-03-07  
+**Decision**: The initial release will support a baseline/planned state, actual execution state, and one active projected state, while deferring multi-scenario forecasting to a later phase.  
+**Rationale**: This preserves the core value of drift and risk visibility without dragging v1 into complex scenario-management UX and data contracts.  
+**Alternatives Considered**: Deferring projections entirely; building multi-scenario forecasting into v1.
+
+## Confirmed Assumptions
 
 - Direct npm installation is the primary distribution target, with CDN/script-tag support required as a second delivery path.
 - Interactive mode will use a controlled-event model so hosts can choose whether edits are local-only or persisted externally.
-- The initial reference implementation should demonstrate crop planning at the field/block level, but not bake crop-specific rules into the core API.
+- The initial reference implementation should demonstrate crop planning around a planted farm group, with fields as primary lanes and operations as work items, without baking crop-specific rules into the core API.
 
-## Clarifications Needed Before Implementation Starts
+## Current Planning Position
 
-1. Should the initial release prioritize local-only editing, host-controlled editing, or both from day one?
-2. Which export formats are truly required in v1: `JSON`, `CSV`, `PNG`, `PDF`, or another subset?
-3. For crop tracking, do you want the first reference example centered on fields, blocks, varieties, or operational runs?
-4. Is direct support for baselines and forecast scenarios mandatory in v1, or acceptable as a phased follow-up after the core planned/actual model lands?
+There are no blocking clarification gaps for the foundation phase. The current plan assumes:
+
+- baseline/planned, actual, and single-projection support in v1,
+- both local and host-controlled editing flows,
+- `JSON`, `CSV`, and `PNG` as the initial export set,
+- a crop reference example modeled as farm group -> field -> operation.

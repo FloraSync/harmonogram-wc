@@ -128,7 +128,7 @@
 **Estimated Effort**: 90-120 min
 
 ### Tasks:
-- [ ] Implement edit-request flows for move, resize, split, create, and delete actions.
+- [ ] Implement edit-request flows for move, resize, split, create, and delete actions in both local-only and host-controlled modes.
 - [ ] Add local undo/redo history for interactive sessions.
 - [ ] Verify controlled-mode behavior so hosts remain authoritative over persistence.
 
@@ -175,6 +175,7 @@
 ### Tasks:
 - [ ] Ship typed ESM outputs and a self-registering browser bundle.
 - [ ] Create raw HTML and framework-host examples that use the same public contract.
+- [ ] Support `JSON`, `CSV`, and `PNG` export flows.
 - [ ] Create publishing and package-contract smoke tests.
 - [ ] Document installation, usage, theming, and extension points.
 
@@ -189,7 +190,7 @@
 **Estimated Effort**: 90-120 min
 
 ### Tasks:
-- [ ] Create a crop-tracking example dataset organized by field/block or the confirmed planning grain.
+- [ ] Create a crop-tracking example dataset for a planted farm group, using fields as lanes and operations as work items.
 - [ ] Demonstrate planned vs actual vs projected operations and seasonal windows.
 - [ ] Document which parts are universal core and which parts are crop-specific overlay conventions.
 
