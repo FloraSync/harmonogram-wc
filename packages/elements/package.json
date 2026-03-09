@@ -27,6 +27,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
+    "@harmonogram/core": "0.1.0",
     "lit": "^3.3.2"
   }
 }
