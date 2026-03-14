@@ -2,10 +2,12 @@ export { HarmonogramWc } from './harmonogram-wc.js';
 export type { HarmonogramTask } from './harmonogram-wc.js';
 export { HarmonogramBoard } from './harmonogram-board.js';
 export {
+  BOARD_GROUPING_MODES,
   TIMELINE_SCALES,
   buildBoardViewModel,
   type BuildBoardViewModelInput,
   type HarmonogramBoardFilters,
+  type HarmonogramBoardGroupBy,
   type HarmonogramDependencyInspectionViewModel,
   type HarmonogramDependencyOverlayRowViewModel,
   type HarmonogramDependencyOverlayViewModel,

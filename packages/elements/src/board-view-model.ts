@@ -2,6 +2,7 @@ import type {
   DependencyRelationship,
   Lane,
   Marker,
+  MetadataMap,
   Plan,
   Segment,
   TimeRange,
@@ -12,10 +13,22 @@ import { deriveHarmonyInsights, splitRangeByScale } from '@harmonogram/core';
 export const TIMELINE_SCALES = ['hour', 'day', 'week', 'month', 'season'] as const;
 export type TimelineScale = (typeof TIMELINE_SCALES)[number];
 
+export const BOARD_GROUPING_MODES = ['lane', 'hierarchy', 'resource', 'phase'] as const;
+export type HarmonogramBoardGroupBy = (typeof BOARD_GROUPING_MODES)[number];
+
 const MIN_VISIBLE_SEGMENT_WIDTH_PERCENT = 0.8;
 const DEPENDENCY_OVERLAY_ROW_HEIGHT_PX = 36;
 const DEPENDENCY_OVERLAY_ROW_GAP_PX = 8;
 const DEPENDENCY_PATH_GUTTER_PERCENT = 4;
+const MAX_RENDERED_ITEMS = 400;
+const MAX_RENDERED_ITEMS_PER_LANE = 80;
+const ROOT_LANE_ID = '__root__';
+const DEFAULT_GROUP_BY: HarmonogramBoardGroupBy = 'lane';
+const UNASSIGNED_RESOURCE_GROUP_ID = 'resource:unassigned';
+const UNASSIGNED_RESOURCE_LABEL = 'Unassigned resource';
+const UNASSIGNED_RESOURCE_FILTER = 'unassigned';
+const UNSPECIFIED_PHASE_GROUP_ID = 'phase:unspecified';
+const UNSPECIFIED_PHASE_LABEL = 'Unspecified phase';
 
 type BoundaryKind = 'start' | 'end';
 
@@ -35,6 +48,35 @@ interface RangeMetrics {
   durationMs: number;
 }
 
+interface LaneGroupDescriptor {
+  id: string;
+  label: string;
+  depth: number;
+  collapsible: boolean;
+  collapsed: boolean;
+  groupBy: HarmonogramBoardGroupBy;
+  items: WorkItem[];
+}
+
+interface GroupBucket {
+  id: string;
+  label: string;
+  items: WorkItem[];
+}
+
+interface DependencyPathOrderingKey {
+  requiredBoundaryMs: number | null;
+  actualBoundaryMs: number | null;
+  fromRowIndex: number;
+  toRowIndex: number;
+  id: string;
+}
+
+interface DependencyPathOrderingEntry {
+  path: HarmonogramDependencyPathViewModel;
+  key: DependencyPathOrderingKey;
+}
+
 export interface HarmonogramBoardView {
   scale?: TimelineScale;
   range?: TimeRange;
@@ -49,7 +91,12 @@ export interface HarmonogramBoardSelection {
 export interface HarmonogramBoardFilters {
   laneIds?: string[];
   itemIds?: string[];
+  resourceIds?: string[];
+  phases?: string[];
+  collapsedLaneIds?: string[];
   query?: string;
+  focusedItemId?: string;
+  groupBy?: HarmonogramBoardGroupBy;
 }
 
 export interface HarmonogramTimelineTickViewModel {
@@ -87,6 +134,11 @@ export interface HarmonogramLaneViewModel {
   id: string;
   label: string;
   itemCount: number;
+  hiddenItemCount: number;
+  depth: number;
+  collapsible: boolean;
+  collapsed: boolean;
+  groupBy: HarmonogramBoardGroupBy;
   items: HarmonogramLaneItemViewModel[];
 }
 
@@ -145,6 +197,8 @@ export interface HarmonogramBoardViewModel {
   modeLabel: string;
   scale: TimelineScale;
   range: TimeRange | null;
+  groupBy: HarmonogramBoardGroupBy;
+  focusedItemId: string | null;
   laneCount: number;
   totalItemCount: number;
   visibleItemCount: number;
@@ -214,6 +268,16 @@ function resolveScale(view: HarmonogramBoardView | null): TimelineScale {
   return TIMELINE_SCALES.includes(view.scale) ? view.scale : 'week';
 }
 
+function resolveGroupBy(filters: HarmonogramBoardFilters | null): HarmonogramBoardGroupBy {
+  const groupBy = filters?.groupBy;
+
+  if (!groupBy || !BOARD_GROUPING_MODES.includes(groupBy)) {
+    return DEFAULT_GROUP_BY;
+  }
+
+  return groupBy;
+}
+
 function toSet(values: string[] | undefined): Set<string> | null {
   if (!values || values.length === 0) {
     return null;
@@ -222,10 +286,74 @@ function toSet(values: string[] | undefined): Set<string> | null {
   return new Set(values);
 }
 
-function applyFilters(items: WorkItem[], filters: HarmonogramBoardFilters | null): WorkItem[] {
+function normalizeFacet(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function toNormalizedSet(values: string[] | undefined): Set<string> | null {
+  if (!values || values.length === 0) {
+    return null;
+  }
+
+  const normalizedValues = values.map((value) => normalizeFacet(value)).filter((value) => value.length > 0);
+
+  if (normalizedValues.length === 0) {
+    return null;
+  }
+
+  return new Set(normalizedValues);
+}
+
+function readMetadataString(metadata: MetadataMap | undefined, key: string): string | null {
+  const raw = metadata?.[key];
+
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveItemPhase(item: WorkItem, laneById: Map<string, Lane>): string | null {
+  const itemPhase = readMetadataString(item.metadata, 'phase') ?? readMetadataString(item.metadata, 'operationPhase');
+
+  if (itemPhase) {
+    return itemPhase;
+  }
+
+  const lane = laneById.get(item.laneId);
+  return readMetadataString(lane?.metadata, 'phase') ?? readMetadataString(lane?.metadata, 'operationPhase');
+}
+
+function resolvePrimaryResourceId(item: WorkItem): string | null {
+  const resourceId = item.resourceAssignments[0]?.resourceId;
+
+  if (typeof resourceId !== 'string') {
+    return null;
+  }
+
+  const trimmed = resourceId.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function hasItemScopedFilter(filters: HarmonogramBoardFilters | null): boolean {
+  return Boolean(
+    filters?.itemIds?.length ||
+      filters?.query?.trim() ||
+      filters?.resourceIds?.length ||
+      filters?.phases?.length ||
+      filters?.focusedItemId?.trim(),
+  );
+}
+
+function applyFilters(plan: Plan | null, items: WorkItem[], filters: HarmonogramBoardFilters | null): WorkItem[] {
   const laneSet = toSet(filters?.laneIds);
   const itemSet = toSet(filters?.itemIds);
+  const resourceSet = toNormalizedSet(filters?.resourceIds);
+  const phaseSet = toNormalizedSet(filters?.phases);
   const query = filters?.query?.trim().toLocaleLowerCase();
+  const laneById = new Map((plan?.lanes ?? []).map((lane) => [lane.id, lane]));
 
   return sortItems(
     items.filter((item) => {
@@ -237,6 +365,25 @@ function applyFilters(items: WorkItem[], filters: HarmonogramBoardFilters | null
         return false;
       }
 
+      if (resourceSet) {
+        const itemResourceFacets = item.resourceAssignments.map((assignment) => normalizeFacet(assignment.resourceId));
+        const hasResourceMatch =
+          itemResourceFacets.some((resourceFacet) => resourceSet.has(resourceFacet)) ||
+          (itemResourceFacets.length === 0 && resourceSet.has(UNASSIGNED_RESOURCE_FILTER));
+
+        if (!hasResourceMatch) {
+          return false;
+        }
+      }
+
+      if (phaseSet) {
+        const phaseFacet = normalizeFacet(resolveItemPhase(item, laneById) ?? UNSPECIFIED_PHASE_LABEL);
+
+        if (!phaseSet.has(phaseFacet)) {
+          return false;
+        }
+      }
+
       if (!query) {
         return true;
       }
@@ -244,6 +391,35 @@ function applyFilters(items: WorkItem[], filters: HarmonogramBoardFilters | null
       return item.label.toLocaleLowerCase().includes(query) || item.id.toLocaleLowerCase().includes(query);
     }),
   );
+}
+
+function applyFocusFilter(
+  items: WorkItem[],
+  focusedItemId: string | undefined,
+  dependencies: Plan['dependencies'],
+): WorkItem[] {
+  if (!focusedItemId) {
+    return items;
+  }
+
+  const visibleIds = new Set(items.map((item) => item.id));
+  if (!visibleIds.has(focusedItemId)) {
+    return items;
+  }
+
+  const focusedIds = new Set<string>([focusedItemId]);
+
+  for (const dependency of dependencies) {
+    if (dependency.fromId === focusedItemId && visibleIds.has(dependency.toId)) {
+      focusedIds.add(dependency.toId);
+    }
+
+    if (dependency.toId === focusedItemId && visibleIds.has(dependency.fromId)) {
+      focusedIds.add(dependency.fromId);
+    }
+  }
+
+  return items.filter((item) => focusedIds.has(item.id));
 }
 
 function resolveModeLabel(interactive: boolean, readonly: boolean): string {
@@ -405,41 +581,6 @@ function buildTimelineMarkers(
   return visibleMarkers;
 }
 
-function resolveVisibleLanes(
-  plan: Plan | null,
-  visibleItems: WorkItem[],
-  filters: HarmonogramBoardFilters | null,
-): Lane[] {
-  if (!plan) {
-    return [];
-  }
-
-  const laneSet = toSet(filters?.laneIds);
-  const hasItemScopedFilter = Boolean(filters?.itemIds?.length || filters?.query?.trim());
-  const visibleCountsByLane = new Map<string, number>();
-
-  for (const item of visibleItems) {
-    const current = visibleCountsByLane.get(item.laneId) ?? 0;
-    visibleCountsByLane.set(item.laneId, current + 1);
-  }
-
-  return plan.lanes.filter((lane) => {
-    if (laneSet && !laneSet.has(lane.id)) {
-      return false;
-    }
-
-    if (laneSet) {
-      return true;
-    }
-
-    if (!hasItemScopedFilter) {
-      return true;
-    }
-
-    return (visibleCountsByLane.get(lane.id) ?? 0) > 0;
-  });
-}
-
 function sortSegments(segments: Segment[]): Segment[] {
   return [...segments].sort((left, right) => {
     const leftStart = toTimestamp(left.start) ?? 0;
@@ -480,29 +621,401 @@ function sortLaneItems(items: WorkItem[]): WorkItem[] {
   });
 }
 
-function buildLaneRows(
-  lanes: Lane[],
+function buildCollapsedLaneIds(plan: Plan | null, filters: HarmonogramBoardFilters | null): Set<string> {
+  const collapsedIds = new Set(filters?.collapsedLaneIds ?? []);
+
+  if (!plan) {
+    return collapsedIds;
+  }
+
+  for (const lane of plan.lanes) {
+    if (lane.collapsed) {
+      collapsedIds.add(lane.id);
+    }
+  }
+
+  return collapsedIds;
+}
+
+function buildLaneOrderMap(plan: Plan): Map<string, number> {
+  return new Map(plan.lanes.map((lane, index) => [lane.id, index]));
+}
+
+function sortLanesByPlanOrder(lanes: Lane[], laneOrderMap: Map<string, number>): Lane[] {
+  return [...lanes].sort((left, right) => {
+    const leftOrder = laneOrderMap.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = laneOrderMap.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftOrder === rightOrder) {
+      return left.id.localeCompare(right.id);
+    }
+
+    return leftOrder - rightOrder;
+  });
+}
+
+function resolveLinearVisibleLanes(
+  plan: Plan | null,
   visibleItems: WorkItem[],
-  selectedItemIds: string[],
-  rangeMetrics: RangeMetrics | null,
-): HarmonogramLaneViewModel[] {
-  const itemsByLane = new Map<string, WorkItem[]>();
-  const selectedSet = new Set(selectedItemIds);
+  filters: HarmonogramBoardFilters | null,
+): Lane[] {
+  if (!plan) {
+    return [];
+  }
+
+  const laneSet = toSet(filters?.laneIds);
+  const itemScopedFilter = hasItemScopedFilter(filters);
+  const visibleCountsByLane = new Map<string, number>();
 
   for (const item of visibleItems) {
-    const laneItems = itemsByLane.get(item.laneId);
+    const current = visibleCountsByLane.get(item.laneId) ?? 0;
+    visibleCountsByLane.set(item.laneId, current + 1);
+  }
+
+  return plan.lanes.filter((lane) => {
+    if (laneSet && !laneSet.has(lane.id)) {
+      return false;
+    }
+
+    if (laneSet) {
+      return true;
+    }
+
+    if (!itemScopedFilter) {
+      return true;
+    }
+
+    return (visibleCountsByLane.get(lane.id) ?? 0) > 0;
+  });
+}
+
+function buildLaneGroupDescriptors(
+  plan: Plan | null,
+  visibleItems: WorkItem[],
+  filters: HarmonogramBoardFilters | null,
+  collapsedLaneIds: Set<string>,
+): LaneGroupDescriptor[] {
+  if (!plan) {
+    return [];
+  }
+
+  const visibleLanes = resolveLinearVisibleLanes(plan, visibleItems, filters);
+  const itemsByLaneId = new Map<string, WorkItem[]>();
+
+  for (const item of visibleItems) {
+    const laneItems = itemsByLaneId.get(item.laneId);
 
     if (laneItems) {
       laneItems.push(item);
       continue;
     }
 
-    itemsByLane.set(item.laneId, [item]);
+    itemsByLaneId.set(item.laneId, [item]);
   }
 
-  return lanes.map((lane) => {
-    const laneItems = sortLaneItems(itemsByLane.get(lane.id) ?? []);
-    const items: HarmonogramLaneItemViewModel[] = laneItems.map((item) => ({
+  return visibleLanes.map((lane) => {
+    const laneItems = sortLaneItems(itemsByLaneId.get(lane.id) ?? []);
+
+    return {
+      id: lane.id,
+      label: lane.label,
+      depth: 0,
+      collapsed: collapsedLaneIds.has(lane.id),
+      collapsible: laneItems.length > 0,
+      groupBy: 'lane',
+      items: laneItems,
+    };
+  });
+}
+
+function addLaneWithAncestors(laneById: Map<string, Lane>, laneId: string, collector: Set<string>): void {
+  let current: Lane | undefined = laneById.get(laneId);
+
+  while (current) {
+    if (collector.has(current.id)) {
+      return;
+    }
+
+    collector.add(current.id);
+    current = current.parentId ? laneById.get(current.parentId) : undefined;
+  }
+}
+
+function buildHierarchyLaneGroupDescriptors(
+  plan: Plan | null,
+  visibleItems: WorkItem[],
+  filters: HarmonogramBoardFilters | null,
+  collapsedLaneIds: Set<string>,
+): LaneGroupDescriptor[] {
+  if (!plan) {
+    return [];
+  }
+
+  const laneById = new Map(plan.lanes.map((lane) => [lane.id, lane]));
+  const laneOrderMap = buildLaneOrderMap(plan);
+  const laneFilterSet = toSet(filters?.laneIds);
+  const itemScopedFilter = hasItemScopedFilter(filters);
+  const laneIdsToInclude = new Set<string>();
+
+  if (!laneFilterSet && !itemScopedFilter) {
+    for (const lane of plan.lanes) {
+      laneIdsToInclude.add(lane.id);
+    }
+  } else {
+    const seedLaneIds = laneFilterSet
+      ? [...laneFilterSet]
+      : [...new Set(visibleItems.map((item) => item.laneId))];
+
+    for (const laneId of seedLaneIds) {
+      addLaneWithAncestors(laneById, laneId, laneIdsToInclude);
+    }
+  }
+
+  const filteredLanes = plan.lanes.filter((lane) => laneIdsToInclude.has(lane.id));
+  const childrenByParent = new Map<string, Lane[]>();
+
+  for (const lane of filteredLanes) {
+    const parentId = lane.parentId && laneIdsToInclude.has(lane.parentId) ? lane.parentId : ROOT_LANE_ID;
+    const siblings = childrenByParent.get(parentId);
+
+    if (siblings) {
+      siblings.push(lane);
+      continue;
+    }
+
+    childrenByParent.set(parentId, [lane]);
+  }
+
+  for (const [parentId, siblings] of childrenByParent.entries()) {
+    childrenByParent.set(parentId, sortLanesByPlanOrder(siblings, laneOrderMap));
+  }
+
+  const itemsByLaneId = new Map<string, WorkItem[]>();
+  for (const item of visibleItems) {
+    const laneItems = itemsByLaneId.get(item.laneId);
+
+    if (laneItems) {
+      laneItems.push(item);
+      continue;
+    }
+
+    itemsByLaneId.set(item.laneId, [item]);
+  }
+
+  const groups: LaneGroupDescriptor[] = [];
+
+  const visitLane = (lane: Lane, depth: number): void => {
+    const children = childrenByParent.get(lane.id) ?? [];
+    const laneItems = sortLaneItems(itemsByLaneId.get(lane.id) ?? []);
+    const collapsible = children.length > 0;
+    const collapsed = collapsible && collapsedLaneIds.has(lane.id);
+
+    groups.push({
+      id: lane.id,
+      label: lane.label,
+      depth,
+      collapsed,
+      collapsible,
+      groupBy: 'hierarchy',
+      items: laneItems,
+    });
+
+    if (collapsed) {
+      return;
+    }
+
+    for (const child of children) {
+      visitLane(child, depth + 1);
+    }
+  };
+
+  for (const rootLane of childrenByParent.get(ROOT_LANE_ID) ?? []) {
+    visitLane(rootLane, 0);
+  }
+
+  return groups;
+}
+
+function sortGroupBuckets(buckets: GroupBucket[]): GroupBucket[] {
+  return [...buckets].sort((left, right) => {
+    const labelOrder = left.label.localeCompare(right.label);
+
+    if (labelOrder !== 0) {
+      return labelOrder;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function buildResourceLaneGroupDescriptors(
+  plan: Plan | null,
+  visibleItems: WorkItem[],
+  collapsedLaneIds: Set<string>,
+): LaneGroupDescriptor[] {
+  const resourceLabelById = new Map((plan?.resources ?? []).map((resource) => [resource.id, resource.label]));
+  const bucketsById = new Map<string, GroupBucket>();
+
+  for (const item of visibleItems) {
+    const resourceId = resolvePrimaryResourceId(item);
+    const groupId = resourceId ? `resource:${resourceId}` : UNASSIGNED_RESOURCE_GROUP_ID;
+    const label = resourceId ? (resourceLabelById.get(resourceId) ?? `Resource ${resourceId}`) : UNASSIGNED_RESOURCE_LABEL;
+    const bucket = bucketsById.get(groupId);
+
+    if (bucket) {
+      bucket.items.push(item);
+      continue;
+    }
+
+    bucketsById.set(groupId, {
+      id: groupId,
+      label,
+      items: [item],
+    });
+  }
+
+  return sortGroupBuckets([...bucketsById.values()]).map((bucket) => ({
+    id: bucket.id,
+    label: bucket.label,
+    depth: 0,
+    collapsed: collapsedLaneIds.has(bucket.id),
+    collapsible: bucket.items.length > 0,
+    groupBy: 'resource',
+    items: sortLaneItems(bucket.items),
+  }));
+}
+
+function toSlug(value: string): string {
+  const normalized = value
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+
+  return normalized.length > 0 ? normalized : 'unspecified';
+}
+
+function buildPhaseLaneGroupDescriptors(
+  plan: Plan | null,
+  visibleItems: WorkItem[],
+  collapsedLaneIds: Set<string>,
+): LaneGroupDescriptor[] {
+  const laneById = new Map((plan?.lanes ?? []).map((lane) => [lane.id, lane]));
+  const bucketsByKey = new Map<string, GroupBucket>();
+
+  for (const item of visibleItems) {
+    const phaseLabel = resolveItemPhase(item, laneById) ?? UNSPECIFIED_PHASE_LABEL;
+    const phaseKey = normalizeFacet(phaseLabel);
+    const groupId = phaseKey === normalizeFacet(UNSPECIFIED_PHASE_LABEL) ? UNSPECIFIED_PHASE_GROUP_ID : `phase:${toSlug(phaseLabel)}`;
+    const bucket = bucketsByKey.get(phaseKey);
+
+    if (bucket) {
+      bucket.items.push(item);
+      continue;
+    }
+
+    bucketsByKey.set(phaseKey, {
+      id: groupId,
+      label: phaseLabel,
+      items: [item],
+    });
+  }
+
+  return sortGroupBuckets([...bucketsByKey.values()]).map((bucket) => ({
+    id: bucket.id,
+    label: bucket.label,
+    depth: 0,
+    collapsed: collapsedLaneIds.has(bucket.id),
+    collapsible: bucket.items.length > 0,
+    groupBy: 'phase',
+    items: sortLaneItems(bucket.items),
+  }));
+}
+
+function buildLaneDescriptors(
+  plan: Plan | null,
+  visibleItems: WorkItem[],
+  filters: HarmonogramBoardFilters | null,
+  groupBy: HarmonogramBoardGroupBy,
+): LaneGroupDescriptor[] {
+  const collapsedLaneIds = buildCollapsedLaneIds(plan, filters);
+
+  if (groupBy === 'hierarchy') {
+    return buildHierarchyLaneGroupDescriptors(plan, visibleItems, filters, collapsedLaneIds);
+  }
+
+  if (groupBy === 'resource') {
+    return buildResourceLaneGroupDescriptors(plan, visibleItems, collapsedLaneIds);
+  }
+
+  if (groupBy === 'phase') {
+    return buildPhaseLaneGroupDescriptors(plan, visibleItems, collapsedLaneIds);
+  }
+
+  return buildLaneGroupDescriptors(plan, visibleItems, filters, collapsedLaneIds);
+}
+
+function buildLaneRows(
+  laneGroups: LaneGroupDescriptor[],
+  selectedItemIds: string[],
+  focusedItemId: string | undefined,
+  rangeMetrics: RangeMetrics | null,
+): HarmonogramLaneViewModel[] {
+  const selectedSet = new Set(selectedItemIds);
+  const mandatoryItemIds = new Set(selectedItemIds);
+
+  if (focusedItemId && focusedItemId.length > 0) {
+    mandatoryItemIds.add(focusedItemId);
+  }
+
+  const mandatoryItemTotal = laneGroups.reduce((total, laneGroup) => {
+    let mandatoryCount = 0;
+
+    for (const item of laneGroup.items) {
+      if (mandatoryItemIds.has(item.id)) {
+        mandatoryCount += 1;
+      }
+    }
+
+    return total + mandatoryCount;
+  }, 0);
+
+  let remainingGlobalBudget = Math.max(MAX_RENDERED_ITEMS, mandatoryItemTotal);
+
+  return laneGroups.map((laneGroup) => {
+    const laneItems = sortLaneItems(laneGroup.items);
+    const visibleLaneItems: WorkItem[] = [];
+
+    if (!laneGroup.collapsed) {
+      const laneBudget = Math.max(0, Math.min(MAX_RENDERED_ITEMS_PER_LANE, remainingGlobalBudget));
+      const visibleLaneItemIds = new Set<string>();
+
+      for (const item of laneItems) {
+        if (!mandatoryItemIds.has(item.id) || visibleLaneItems.length >= laneBudget) {
+          continue;
+        }
+
+        visibleLaneItems.push(item);
+        visibleLaneItemIds.add(item.id);
+      }
+
+      for (const item of laneItems) {
+        if (visibleLaneItems.length >= laneBudget) {
+          break;
+        }
+
+        if (visibleLaneItemIds.has(item.id)) {
+          continue;
+        }
+
+        visibleLaneItems.push(item);
+        visibleLaneItemIds.add(item.id);
+      }
+
+      remainingGlobalBudget = Math.max(0, remainingGlobalBudget - visibleLaneItems.length);
+    }
+
+    const items: HarmonogramLaneItemViewModel[] = visibleLaneItems.map((item) => ({
       id: item.id,
       label: item.label,
       selected: selectedSet.has(item.id),
@@ -529,9 +1042,14 @@ function buildLaneRows(
     }));
 
     return {
-      id: lane.id,
-      label: lane.label,
-      itemCount: items.length,
+      id: laneGroup.id,
+      label: laneGroup.label,
+      itemCount: laneItems.length,
+      hiddenItemCount: laneItems.length - visibleLaneItems.length,
+      depth: laneGroup.depth,
+      collapsible: laneGroup.collapsible,
+      collapsed: laneGroup.collapsed,
+      groupBy: laneGroup.groupBy,
       items,
     };
   });
@@ -561,11 +1079,48 @@ function buildDependencyRows(lanes: HarmonogramLaneViewModel[]): HarmonogramDepe
   return rows;
 }
 
-function resolveBoundaryIso(
-  anchor: { start: string; end: string },
-  boundary: BoundaryKind,
-): string {
+function resolveBoundaryIso(anchor: { start: string; end: string }, boundary: BoundaryKind): string {
   return boundary === 'start' ? anchor.start : anchor.end;
+}
+
+function compareSortableTimestamp(left: number | null, right: number | null): number {
+  if (left === right) {
+    return 0;
+  }
+
+  if (left === null) {
+    return 1;
+  }
+
+  if (right === null) {
+    return -1;
+  }
+
+  return left - right;
+}
+
+function compareDependencyPathOrdering(left: DependencyPathOrderingEntry, right: DependencyPathOrderingEntry): number {
+  const requiredBoundaryOrder = compareSortableTimestamp(left.key.requiredBoundaryMs, right.key.requiredBoundaryMs);
+
+  if (requiredBoundaryOrder !== 0) {
+    return requiredBoundaryOrder;
+  }
+
+  const actualBoundaryOrder = compareSortableTimestamp(left.key.actualBoundaryMs, right.key.actualBoundaryMs);
+
+  if (actualBoundaryOrder !== 0) {
+    return actualBoundaryOrder;
+  }
+
+  if (left.key.fromRowIndex !== right.key.fromRowIndex) {
+    return left.key.fromRowIndex - right.key.fromRowIndex;
+  }
+
+  if (left.key.toRowIndex !== right.key.toRowIndex) {
+    return left.key.toRowIndex - right.key.toRowIndex;
+  }
+
+  return left.key.id.localeCompare(right.key.id);
 }
 
 function buildDependencyPath(startPercent: number, endPercent: number, startY: number, endY: number): string {
@@ -640,14 +1195,15 @@ function buildDependencyOverlay(
   const selectedDependencySet = new Set(selection?.dependencyIds ?? []);
   const rowByItemId = new Map(rows.map((row) => [row.itemId, row]));
   const criticalDependencyIds = buildCriticalDependencyIds(plan.dependencies, harmony.criticalSequence?.itemIds);
-  const paths: HarmonogramDependencyPathViewModel[] = [];
+  const dependencyEvaluationById = new Map(
+    harmony.dependencyResolution.dependencyResults.map((dependencyResult) => [dependencyResult.dependencyId, dependencyResult]),
+  );
+  const pathEntries: DependencyPathOrderingEntry[] = [];
 
-  for (const dependency of [...plan.dependencies].sort((left, right) => left.id.localeCompare(right.id))) {
+  for (const dependency of plan.dependencies) {
     const fromRow = rowByItemId.get(dependency.fromId);
     const toRow = rowByItemId.get(dependency.toId);
-    const evaluation = harmony.dependencyResolution.dependencyResults.find(
-      (dependencyResult) => dependencyResult.dependencyId === dependency.id,
-    );
+    const evaluation = dependencyEvaluationById.get(dependency.id);
 
     if (!fromRow || !toRow || !evaluation) {
       continue;
@@ -661,40 +1217,50 @@ function buildDependencyOverlay(
       continue;
     }
 
-    const startPercent = buildPointPercent(
-      resolveBoundaryIso(fromAnchor, boundaryRule.fromBoundary),
-      rangeMetrics,
-    );
+    const startPercent = buildPointPercent(resolveBoundaryIso(fromAnchor, boundaryRule.fromBoundary), rangeMetrics);
     const endPercent = buildPointPercent(resolveBoundaryIso(toAnchor, boundaryRule.toBoundary), rangeMetrics);
 
     if (startPercent === null || endPercent === null) {
       continue;
     }
 
-    paths.push({
-      id: dependency.id,
-      fromId: dependency.fromId,
-      fromLabel: fromRow.itemLabel,
-      toId: dependency.toId,
-      toLabel: toRow.itemLabel,
-      relationship: dependency.relationship,
-      lag: dependency.lag,
-      hard: dependency.hard,
-      satisfied: evaluation.satisfied,
-      violationMs: evaluation.violationMs,
-      critical: criticalDependencyIds.has(dependency.id),
-      selected: selectedDependencySet.has(dependency.id),
-      startPercent,
-      endPercent,
-      startY: fromRow.centerY,
-      endY: toRow.centerY,
-      path: buildDependencyPath(startPercent, endPercent, fromRow.centerY, toRow.centerY),
+    pathEntries.push({
+      path: {
+        id: dependency.id,
+        fromId: dependency.fromId,
+        fromLabel: fromRow.itemLabel,
+        toId: dependency.toId,
+        toLabel: toRow.itemLabel,
+        relationship: dependency.relationship,
+        lag: dependency.lag,
+        hard: dependency.hard,
+        satisfied: evaluation.satisfied,
+        violationMs: evaluation.violationMs,
+        critical: criticalDependencyIds.has(dependency.id),
+        selected: selectedDependencySet.has(dependency.id),
+        startPercent,
+        endPercent,
+        startY: fromRow.centerY,
+        endY: toRow.centerY,
+        path: buildDependencyPath(startPercent, endPercent, fromRow.centerY, toRow.centerY),
+      },
+      key: {
+        requiredBoundaryMs: toTimestamp(evaluation.requiredBoundary),
+        actualBoundaryMs: toTimestamp(evaluation.actualBoundary),
+        fromRowIndex: fromRow.rowIndex,
+        toRowIndex: toRow.rowIndex,
+        id: dependency.id,
+      },
     });
   }
 
-  paths.sort((left, right) => left.id.localeCompare(right.id));
-
-  const firstSelectedDependency = paths.find((path) => selectedDependencySet.has(path.id)) ?? null;
+  pathEntries.sort(compareDependencyPathOrdering);
+  const paths = pathEntries.map((entry) => entry.path);
+  const pathById = new Map(paths.map((path) => [path.id, path]));
+  const firstSelectedDependencyId = [...selectedDependencySet]
+    .sort((left, right) => left.localeCompare(right))
+    .find((dependencyId) => pathById.has(dependencyId));
+  const firstSelectedDependency = firstSelectedDependencyId ? pathById.get(firstSelectedDependencyId) ?? null : null;
 
   return {
     rowHeightPx: DEPENDENCY_OVERLAY_ROW_HEIGHT_PX,
@@ -720,7 +1286,13 @@ function buildDependencyOverlay(
 
 export function buildBoardViewModel(input: BuildBoardViewModelInput): HarmonogramBoardViewModel {
   const items = input.plan?.items ?? [];
-  const visibleItems = applyFilters(items, input.filters);
+  const groupBy = resolveGroupBy(input.filters);
+  const filteredItems = applyFilters(input.plan, items, input.filters);
+  const visibleItems = applyFocusFilter(
+    filteredItems,
+    input.filters?.focusedItemId,
+    input.plan?.dependencies ?? [],
+  );
   const visibleIds = new Set(visibleItems.map((item) => item.id));
   const selected = (input.selection?.itemIds ?? [])
     .filter((itemId) => visibleIds.has(itemId))
@@ -729,20 +1301,23 @@ export function buildBoardViewModel(input: BuildBoardViewModelInput): Harmonogra
   const range = resolveRange(input.plan, input.view);
   const rangeMetrics = resolveRangeMetrics(range);
   const timeZone = input.plan?.timeZone ?? 'UTC';
-  const visibleLanes = resolveVisibleLanes(input.plan, visibleItems, input.filters);
-  const lanes = buildLaneRows(visibleLanes, visibleItems, selected, rangeMetrics);
+  const laneDescriptors = buildLaneDescriptors(input.plan, visibleItems, input.filters, groupBy);
+  const lanes = buildLaneRows(laneDescriptors, selected, input.filters?.focusedItemId, rangeMetrics);
   const selectedDependencyIds = [...(input.selection?.dependencyIds ?? [])].sort((left, right) =>
     left.localeCompare(right),
   );
   const dependencyOverlay = buildDependencyOverlay(input.plan, lanes, input.selection, rangeMetrics);
   const visibleDependencyIdSet = new Set(dependencyOverlay.paths.map((path) => path.id));
+  const focusedItemId = input.filters?.focusedItemId?.trim();
 
   return {
     title: input.plan?.name ?? 'Harmonogram',
     modeLabel: resolveModeLabel(input.interactive, input.readonly),
     scale,
     range,
-    laneCount: visibleLanes.length,
+    groupBy,
+    focusedItemId: focusedItemId && visibleIds.has(focusedItemId) ? focusedItemId : null,
+    laneCount: lanes.length,
     totalItemCount: items.length,
     visibleItemCount: visibleItems.length,
     visibleItems,

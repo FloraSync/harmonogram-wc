@@ -1,8 +1,10 @@
 import type { DependencyRelationship, Plan, TimeRange } from '@harmonogram/core';
 import {
+  BOARD_GROUPING_MODES,
   TIMELINE_SCALES,
   buildBoardViewModel,
   type HarmonogramDependencyPathViewModel,
+  type HarmonogramBoardGroupBy,
   type HarmonogramBoardFilters,
   type HarmonogramBoardSelection,
   type HarmonogramBoardView,
@@ -23,9 +25,10 @@ const BOARD_STYLES = `
   :host {
     box-sizing: border-box;
     display: block;
-    color: var(--harmonogram-board-fg, #1f2937);
-    font-family: var(--harmonogram-board-font, system-ui, -apple-system, sans-serif);
-    --harmonogram-board-lane-label-width: 12.5rem;
+    color: var(--harmonogram-board-fg, #0f172a);
+    font-family: var(--harmonogram-board-font, "Segoe UI", "Avenir Next", "Helvetica Neue", Arial, sans-serif);
+    line-height: 1.35;
+    --harmonogram-board-lane-label-width: 11.5rem;
   }
 
   *, *::before, *::after {
@@ -33,12 +36,12 @@ const BOARD_STYLES = `
   }
 
   [part='container'] {
-    border: 1px solid var(--harmonogram-board-border, #d0d7de);
+    border: 1px solid var(--harmonogram-board-border, #b8c2cf);
     border-radius: 10px;
     background: var(--harmonogram-board-bg, #ffffff);
     display: grid;
-    gap: 0.75rem;
-    padding: 1rem;
+    gap: 0.9rem;
+    padding: 1.1rem;
   }
 
   [part='header'] {
@@ -50,13 +53,13 @@ const BOARD_STYLES = `
 
   [part='title'] {
     margin: 0;
-    font-size: 1rem;
+    font-size: 1.1rem;
     line-height: 1.3;
   }
 
   [part='mode'] {
-    color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.85rem;
+    color: var(--harmonogram-board-muted, #334155);
+    font-size: 0.92rem;
     margin: 0;
     text-transform: capitalize;
   }
@@ -70,9 +73,9 @@ const BOARD_STYLES = `
   .summary-pill {
     border: 1px solid var(--harmonogram-board-border, #d0d7de);
     border-radius: 999px;
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     line-height: 1.2;
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
   }
 
   [part='timeline'] {
@@ -90,9 +93,9 @@ const BOARD_STYLES = `
   [part='timeline-tick'] {
     border-left: 1px solid var(--harmonogram-board-border, #d0d7de);
     color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     line-height: 1.2;
-    padding: 0.45rem 0.5rem;
+    padding: 0.5rem 0.55rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -103,21 +106,21 @@ const BOARD_STYLES = `
   }
 
   [part='timeline-markers'] {
-    min-height: 1.65rem;
+    min-height: 1.9rem;
     position: relative;
-    padding: 0.18rem 0.25rem 0.25rem;
+    padding: 0.24rem 0.3rem 0.3rem;
   }
 
   [part='timeline-marker'] {
     background: var(--harmonogram-marker-medium, #f59e0b);
     border-radius: 999px;
     color: #111827;
-    font-size: 0.68rem;
-    line-height: 1.1;
+    font-size: 0.76rem;
+    line-height: 1.2;
     overflow: hidden;
-    padding: 0.15rem 0.35rem;
+    padding: 0.2rem 0.4rem;
     position: absolute;
-    top: 0.2rem;
+    top: 0.23rem;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -141,7 +144,7 @@ const BOARD_STYLES = `
   [part='lane-empty'],
   [part='segment-empty'] {
     color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.85rem;
+    font-size: 0.92rem;
     margin: 0;
     padding: 0.35rem 0.55rem;
   }
@@ -169,13 +172,13 @@ const BOARD_STYLES = `
 
   [part='dependency-title'] {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.92rem;
     font-weight: 600;
   }
 
   [part='dependency-count'] {
     color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.72rem;
+    font-size: 0.82rem;
   }
 
   [part='dependency-grid'] {
@@ -197,7 +200,7 @@ const BOARD_STYLES = `
     border-radius: 8px;
     color: var(--harmonogram-board-muted, #596272);
     display: flex;
-    font-size: 0.75rem;
+    font-size: 0.84rem;
     line-height: 1.2;
     padding: 0 0.5rem;
     background: var(--harmonogram-board-track-bg, #f8fafc);
@@ -279,23 +282,23 @@ const BOARD_STYLES = `
   }
 
   [part='dependency-inspector-title'] {
-    font-size: 0.76rem;
+    font-size: 0.84rem;
     font-weight: 600;
   }
 
   [part='dependency-inspector-empty'],
   [part='dependency-empty'] {
     color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     margin: 0;
   }
 
   [part='dependency-pill'] {
     border: 1px solid var(--harmonogram-board-border, #d0d7de);
     border-radius: 999px;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     line-height: 1.1;
-    padding: 0.25rem 0.5rem;
+    padding: 0.28rem 0.55rem;
   }
 
   [part='lane'] {
@@ -315,21 +318,35 @@ const BOARD_STYLES = `
     background: var(--harmonogram-board-lane-header-bg, #f8fafc);
   }
 
+  [part='lane-identity'] {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
   [part='lane-label'] {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.92rem;
     font-weight: 600;
+    min-width: 0;
   }
 
   [part='lane-count'] {
     color: var(--harmonogram-board-muted, #596272);
-    font-size: 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .lane-toggle {
+    font-size: 0.8rem;
+    line-height: 1.1;
+    padding: 0.35rem 0.55rem;
   }
 
   [part='lane-grid'] {
     display: grid;
-    gap: 0.25rem;
-    padding: 0.35rem;
+    gap: 0.35rem;
+    padding: 0.45rem;
   }
 
   [part='lane-item'] {
@@ -343,6 +360,8 @@ const BOARD_STYLES = `
     display: flex;
     gap: 0.35rem;
     align-items: center;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   [part='item-actions'] {
@@ -355,15 +374,29 @@ const BOARD_STYLES = `
   [part='item-track'] {
     border: 1px solid var(--harmonogram-board-border, #d0d7de);
     border-radius: 999px;
-    min-height: 1.9rem;
+    min-height: 2.1rem;
     position: relative;
     background: var(--harmonogram-board-track-bg, #f8fafc);
     overflow: hidden;
   }
 
+  [part='item-track'][data-selectable='true'] {
+    cursor: pointer;
+  }
+
+  [part='item-track'][data-selectable='true']:hover {
+    border-color: var(--harmonogram-board-accent, #0f766e);
+  }
+
+  [part='item-track'][data-selected='true'] {
+    border-color: var(--harmonogram-board-accent, #0f766e);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.18);
+  }
+
   [part='segment'] {
     border-radius: 999px;
-    height: 1.15rem;
+    cursor: inherit;
+    height: 1.25rem;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -397,16 +430,17 @@ const BOARD_STYLES = `
     color: inherit;
     cursor: pointer;
     font: inherit;
-    line-height: 1.2;
-    padding: 0.35rem 0.55rem;
+    font-size: 0.88rem;
+    line-height: 1.3;
+    padding: 0.45rem 0.65rem;
   }
 
   .item-select {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 10rem;
     text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .item-select[aria-pressed='true'] {
@@ -425,7 +459,59 @@ const BOARD_STYLES = `
   [part='actions'] {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.55rem;
+  }
+
+  @media (max-width: 900px) {
+    [part='header'] {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    [part='dependency-grid'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    [part='lane-item'] {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: stretch;
+    }
+
+    [part='item-meta'],
+    [part='item-actions'] {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 640px) {
+    [part='timeline-tick'] {
+      white-space: normal;
+      line-height: 1.25;
+    }
+
+    .item-select,
+    .item-edit,
+    .item-action,
+    .action-button {
+      width: 100%;
+      text-align: left;
+    }
+
+    [part='item-actions'] {
+      width: 100%;
+    }
+  }
+
+  [part='announcer'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 `;
 
@@ -460,7 +546,17 @@ export interface HarmonogramEditRequestEventDetail {
 }
 
 export interface HarmonogramActionEventDetail {
-  action: 'zoom-in' | 'zoom-out' | 'fit-to-range' | 'export-state' | 'focus-item' | 'undo' | 'redo';
+  action:
+    | 'zoom-in'
+    | 'zoom-out'
+    | 'fit-to-range'
+    | 'export-state'
+    | 'export-json'
+    | 'export-csv'
+    | 'export-png'
+    | 'focus-item'
+    | 'undo'
+    | 'redo';
   scale: TimelineScale;
   itemId?: string;
   state?: HarmonogramBoardStateSnapshot;
@@ -517,6 +613,79 @@ function normalizeEditingMode(mode: string | null | undefined): HarmonogramEditi
   }
 
   return DEFAULT_EDITING_MODE;
+}
+
+function uniqueSorted(values: string[] | undefined): string[] | undefined {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const unique = [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
+  if (unique.length === 0) {
+    return undefined;
+  }
+
+  return unique.sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeGroupBy(value: HarmonogramBoardGroupBy | string | undefined): HarmonogramBoardGroupBy | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return BOARD_GROUPING_MODES.includes(value as HarmonogramBoardGroupBy)
+    ? (value as HarmonogramBoardGroupBy)
+    : undefined;
+}
+
+function normalizeFilters(filters: HarmonogramBoardFilters | null | undefined): HarmonogramBoardFilters | null {
+  if (!filters) {
+    return null;
+  }
+
+  const normalized: HarmonogramBoardFilters = {};
+  const laneIds = uniqueSorted(filters.laneIds);
+  const itemIds = uniqueSorted(filters.itemIds);
+  const resourceIds = uniqueSorted(filters.resourceIds);
+  const phases = uniqueSorted(filters.phases);
+  const collapsedLaneIds = uniqueSorted(filters.collapsedLaneIds);
+  const groupBy = normalizeGroupBy(filters.groupBy);
+  const query = filters.query?.trim();
+  const focusedItemId = filters.focusedItemId?.trim();
+
+  if (laneIds) {
+    normalized.laneIds = laneIds;
+  }
+
+  if (itemIds) {
+    normalized.itemIds = itemIds;
+  }
+
+  if (resourceIds) {
+    normalized.resourceIds = resourceIds;
+  }
+
+  if (phases) {
+    normalized.phases = phases;
+  }
+
+  if (collapsedLaneIds) {
+    normalized.collapsedLaneIds = collapsedLaneIds;
+  }
+
+  if (query && query.length > 0) {
+    normalized.query = query;
+  }
+
+  if (focusedItemId && focusedItemId.length > 0) {
+    normalized.focusedItemId = focusedItemId;
+  }
+
+  if (groupBy) {
+    normalized.groupBy = groupBy;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 function toTimestamp(value: string): number | null {
@@ -888,6 +1057,7 @@ export class HarmonogramBoard extends HTMLElement {
   private _editingMode: HarmonogramEditingMode = DEFAULT_EDITING_MODE;
   private _historyPast: Plan[] = [];
   private _historyFuture: Plan[] = [];
+  private _announcement = '';
 
   constructor() {
     super();
@@ -956,7 +1126,7 @@ export class HarmonogramBoard extends HTMLElement {
   }
 
   set filters(value: HarmonogramBoardFilters | null) {
-    this._filters = value;
+    this._filters = normalizeFilters(value);
     this.render();
   }
 
@@ -1048,7 +1218,71 @@ export class HarmonogramBoard extends HTMLElement {
       action: 'fit-to-range',
       scale: this.currentScale,
     });
+    this.announce('Range reset to plan bounds.');
     this.render();
+  }
+
+  setGroupBy(groupBy: HarmonogramBoardGroupBy): void {
+    const normalizedGroupBy = normalizeGroupBy(groupBy);
+
+    if (!normalizedGroupBy) {
+      return;
+    }
+
+    this.updateFilters({
+      groupBy: normalizedGroupBy,
+      collapsedLaneIds: undefined,
+    });
+  }
+
+  setSearchQuery(query: string): void {
+    this.updateFilters({
+      query,
+    });
+  }
+
+  clearFocus(): void {
+    if (!this._filters?.focusedItemId) {
+      return;
+    }
+
+    this.announce('Focus cleared.');
+    this.updateFilters({
+      focusedItemId: undefined,
+    });
+  }
+
+  clearFilters(): void {
+    if (!this._filters) {
+      return;
+    }
+
+    this._filters = null;
+    this.announce('Filters cleared.');
+    this.render();
+  }
+
+  toggleLaneCollapse(laneId: string): void {
+    const viewModel = this.buildViewModel();
+    const lane = viewModel.lanes.find((candidateLane) => candidateLane.id === laneId);
+
+    if (!lane || !lane.collapsible) {
+      return;
+    }
+
+    const collapsedLaneIds = new Set(this._filters?.collapsedLaneIds ?? []);
+
+    if (collapsedLaneIds.has(laneId)) {
+      collapsedLaneIds.delete(laneId);
+      this.announce(`Expanded ${lane.label}.`);
+    } else {
+      collapsedLaneIds.add(laneId);
+      this.announce(`Collapsed ${lane.label}.`);
+    }
+
+    this.updateFilters({
+      collapsedLaneIds: [...collapsedLaneIds],
+    });
   }
 
   focusItem(itemId: string): void {
@@ -1059,6 +1293,10 @@ export class HarmonogramBoard extends HTMLElement {
 
     const selection: HarmonogramBoardSelection = { itemIds: [itemId] };
     this._selection = selection;
+    this._filters = normalizeFilters({
+      ...(this._filters ?? {}),
+      focusedItemId: itemId,
+    });
 
     this.dispatchBoardEvent<HarmonogramSelectEventDetail>('harmonogram-select', {
       itemId,
@@ -1069,7 +1307,9 @@ export class HarmonogramBoard extends HTMLElement {
       scale: this.currentScale,
       itemId,
     });
+    this.announce(`Focused item ${itemId}.`);
     this.render();
+    this.focusItemButton(itemId);
   }
 
   exportState(): HarmonogramBoardStateSnapshot {
@@ -1079,7 +1319,99 @@ export class HarmonogramBoard extends HTMLElement {
       scale: this.currentScale,
       state: snapshot,
     });
+    this.announce('Exported board state.');
+    this.render();
     return snapshot;
+  }
+
+  exportJson(): string {
+    const payload = {
+      plan: this.activePlan,
+      state: this.getStateSnapshot(),
+    };
+    const output = JSON.stringify(payload, null, 2);
+
+    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
+      action: 'export-json',
+      scale: this.currentScale,
+    });
+    this.announce('Exported JSON payload.');
+    this.render();
+    return output;
+  }
+
+  exportCsv(): string {
+    const plan = this.activePlan;
+    const header = 'itemId,laneId,label,segmentId,segmentKind,start,end';
+
+    if (!plan) {
+      this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
+        action: 'export-csv',
+        scale: this.currentScale,
+      });
+      this.announce('Exported CSV payload.');
+      this.render();
+      return `${header}\n`;
+    }
+
+    const rows: string[] = [header];
+
+    for (const item of plan.items) {
+      if (item.segments.length === 0) {
+        rows.push(
+          [
+            item.id,
+            item.laneId,
+            item.label,
+            '',
+            '',
+            '',
+            '',
+          ]
+            .map((value) => this.escapeCsvValue(value))
+            .join(','),
+        );
+        continue;
+      }
+
+      for (const segment of item.segments) {
+        rows.push(
+          [
+            item.id,
+            item.laneId,
+            item.label,
+            segment.id,
+            segment.segmentKind,
+            segment.start,
+            segment.end,
+          ]
+            .map((value) => this.escapeCsvValue(value))
+            .join(','),
+        );
+      }
+    }
+
+    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
+      action: 'export-csv',
+      scale: this.currentScale,
+    });
+    this.announce('Exported CSV payload.');
+    this.render();
+    return `${rows.join('\n')}\n`;
+  }
+
+  exportPng(): string | null {
+    const viewModel = this.buildViewModel();
+    const dataUrl = this.buildPngDataUrl(viewModel);
+
+    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
+      action: 'export-png',
+      scale: this.currentScale,
+    });
+    this.announce(dataUrl ? 'Exported PNG snapshot.' : 'PNG export unavailable.');
+    this.render();
+
+    return dataUrl;
   }
 
   private get currentScale(): TimelineScale {
@@ -1100,6 +1432,223 @@ export class HarmonogramBoard extends HTMLElement {
 
   private get canUseLocalHistory(): boolean {
     return this._editingMode === 'local' && this.canEdit;
+  }
+
+  private buildViewModel(): HarmonogramBoardViewModel {
+    return buildBoardViewModel({
+      plan: this.activePlan,
+      view: this._view,
+      selection: this._selection,
+      filters: this._filters,
+      interactive: this._interactive,
+      readonly: this._readonly,
+    });
+  }
+
+  private updateFilters(filtersPatch: Partial<HarmonogramBoardFilters>): void {
+    this._filters = normalizeFilters({
+      ...(this._filters ?? {}),
+      ...filtersPatch,
+    });
+    this.render();
+  }
+
+  private announce(message: string): void {
+    this._announcement = message;
+  }
+
+  private focusItemButton(itemId: string): void {
+    const button = this.shadowRoot?.querySelector<HTMLButtonElement>(`[part="item-select"][data-item-id="${itemId}"]`);
+    button?.focus();
+  }
+
+  private getFirstSelectedItemId(viewModel: HarmonogramBoardViewModel): string | null {
+    const selectedItemId = this._selection?.itemIds[0];
+
+    if (!selectedItemId) {
+      return null;
+    }
+
+    const visibleItemIds = new Set(viewModel.lanes.flatMap((lane) => lane.items.map((item) => item.id)));
+    return visibleItemIds.has(selectedItemId) ? selectedItemId : null;
+  }
+
+  private navigateSelection(viewModel: HarmonogramBoardViewModel, direction: 'next' | 'previous' | 'first' | 'last'): void {
+    const orderedItemIds = viewModel.lanes.flatMap((lane) => lane.items.map((item) => item.id));
+
+    if (orderedItemIds.length === 0) {
+      return;
+    }
+
+    const currentItemId = this.getFirstSelectedItemId(viewModel);
+    const currentIndex = currentItemId ? orderedItemIds.indexOf(currentItemId) : -1;
+    let nextIndex = 0;
+
+    if (direction === 'next') {
+      nextIndex = currentIndex >= 0 ? (currentIndex + 1) % orderedItemIds.length : 0;
+    } else if (direction === 'previous') {
+      nextIndex = currentIndex >= 0 ? (currentIndex - 1 + orderedItemIds.length) % orderedItemIds.length : orderedItemIds.length - 1;
+    } else if (direction === 'last') {
+      nextIndex = orderedItemIds.length - 1;
+    }
+
+    const nextItemId = orderedItemIds[nextIndex];
+    this.updateSelection(nextItemId);
+    this.focusItemButton(nextItemId);
+  }
+
+  private handleBoardKeydown(event: KeyboardEvent, viewModel: HarmonogramBoardViewModel): void {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        event.preventDefault();
+        this.navigateSelection(viewModel, 'next');
+        return;
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        event.preventDefault();
+        this.navigateSelection(viewModel, 'previous');
+        return;
+      case 'Home':
+        event.preventDefault();
+        this.navigateSelection(viewModel, 'first');
+        return;
+      case 'End':
+        event.preventDefault();
+        this.navigateSelection(viewModel, 'last');
+        return;
+      case 'e':
+      case 'E': {
+        const selectedItemId = this.getFirstSelectedItemId(viewModel);
+
+        if (this.canEdit && selectedItemId) {
+          event.preventDefault();
+          this.requestEdit('update', selectedItemId);
+        }
+        return;
+      }
+      case 'Delete':
+      case 'Backspace': {
+        const selectedItemId = this.getFirstSelectedItemId(viewModel);
+
+        if (this.canEdit && selectedItemId) {
+          event.preventDefault();
+          this.requestEdit('delete', selectedItemId);
+        }
+        return;
+      }
+      case 'f':
+      case 'F': {
+        const selectedItemId = this.getFirstSelectedItemId(viewModel);
+
+        if (selectedItemId) {
+          event.preventDefault();
+          this.focusItem(selectedItemId);
+        }
+        return;
+      }
+      case 'Escape':
+        if (this._filters?.focusedItemId) {
+          event.preventDefault();
+          this.clearFocus();
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  private escapeCsvValue(value: string): string {
+    const escaped = value.replace(/"/g, '""');
+
+    if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n')) {
+      return `"${escaped}"`;
+    }
+
+    return escaped;
+  }
+
+  private buildPngDataUrl(viewModel: HarmonogramBoardViewModel): string | null {
+    const canvas = document.createElement('canvas');
+    const width = 1400;
+    const headerHeight = 64;
+    const laneHeight = 46;
+    const laneGap = 10;
+    const maxLanes = 24;
+    const laneCount = Math.min(maxLanes, viewModel.lanes.length);
+    const height = Math.max(220, headerHeight + 24 + laneCount * (laneHeight + laneGap));
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+
+    context.fillStyle = '#0f172a';
+    context.font = '600 26px system-ui, sans-serif';
+    context.fillText(viewModel.title, 24, 38);
+
+    context.fillStyle = '#475569';
+    context.font = '500 14px system-ui, sans-serif';
+    context.fillText(`Scale: ${viewModel.scale}  Group: ${viewModel.groupBy}  Items: ${viewModel.visibleItemCount}`, 24, 60);
+
+    const laneLabelWidth = 280;
+    const timelineX = laneLabelWidth + 30;
+    const timelineWidth = width - timelineX - 24;
+    let currentY = headerHeight + 20;
+
+    const drawSegments = (segments: HarmonogramLaneItemViewModel['segments'], top: number): void => {
+      for (const segment of segments) {
+        context.fillStyle =
+          segment.kind === 'actual'
+            ? '#22c55e'
+            : segment.kind === 'projected'
+              ? '#9333ea'
+              : segment.kind === 'pause'
+                ? '#9ca3af'
+                : '#0ea5e9';
+
+        const startX = timelineX + (timelineWidth * segment.startPercent) / 100;
+        const segmentWidth = Math.max(2, (timelineWidth * segment.widthPercent) / 100);
+        context.fillRect(startX, top, segmentWidth, 8);
+      }
+    };
+
+    for (let laneIndex = 0; laneIndex < laneCount; laneIndex += 1) {
+      const lane = viewModel.lanes[laneIndex];
+      context.fillStyle = '#0f172a';
+      context.font = '600 13px system-ui, sans-serif';
+      context.fillText(lane.label, 24 + lane.depth * 14, currentY + 14);
+
+      context.fillStyle = '#94a3b8';
+      context.font = '500 11px system-ui, sans-serif';
+      context.fillText(`${lane.itemCount} item${lane.itemCount === 1 ? '' : 's'}`, 24 + lane.depth * 14, currentY + 30);
+
+      context.strokeStyle = '#cbd5e1';
+      context.strokeRect(timelineX, currentY, timelineWidth, laneHeight);
+
+      if (!lane.collapsed) {
+        const previewItems = lane.items.slice(0, 2);
+
+        for (let itemIndex = 0; itemIndex < previewItems.length; itemIndex += 1) {
+          const item = previewItems[itemIndex];
+          drawSegments(item.segments, currentY + 8 + itemIndex * 14);
+        }
+      }
+
+      currentY += laneHeight + laneGap;
+    }
+
+    return canvas.toDataURL('image/png');
   }
 
   private setScale(scale: TimelineScale): void {
@@ -1154,6 +1703,8 @@ export class HarmonogramBoard extends HTMLElement {
   private updateSelection(itemId: string): HarmonogramBoardSelection {
     const selection: HarmonogramBoardSelection = { itemIds: [itemId] };
     this._selection = selection;
+    const itemLabel = this.activePlan?.items.find((item) => item.id === itemId)?.label ?? itemId;
+    this.announce(`Selected item ${itemLabel}.`);
     this.dispatchBoardEvent<HarmonogramSelectEventDetail>('harmonogram-select', {
       itemId,
       selection,
@@ -1168,6 +1719,7 @@ export class HarmonogramBoard extends HTMLElement {
       dependencyIds: [dependency.id],
     };
     this._selection = selection;
+    this.announce(`Selected dependency ${dependency.fromLabel} to ${dependency.toLabel}.`);
     this.dispatchBoardEvent<HarmonogramSelectEventDetail>('harmonogram-select', {
       itemId: dependency.toId,
       dependencyId: dependency.id,
@@ -1187,6 +1739,9 @@ export class HarmonogramBoard extends HTMLElement {
       itemId,
       mode: this._editingMode,
     });
+    this.announce(
+      itemId ? `Requested ${action} for item ${itemId} in ${this._editingMode} mode.` : `Requested ${action} action.`,
+    );
 
     if (this._editingMode === 'local') {
       this.applyLocalEdit(action, itemId);
@@ -1217,6 +1772,7 @@ export class HarmonogramBoard extends HTMLElement {
       scale: this.currentScale,
       reason: 'shift-forward',
     });
+    this.announce('Range shifted forward.');
     this.render();
   }
 
@@ -1236,7 +1792,12 @@ export class HarmonogramBoard extends HTMLElement {
       filters: {
         laneIds: this._filters?.laneIds ? [...this._filters.laneIds] : undefined,
         itemIds: this._filters?.itemIds ? [...this._filters.itemIds] : undefined,
+        resourceIds: this._filters?.resourceIds ? [...this._filters.resourceIds] : undefined,
+        phases: this._filters?.phases ? [...this._filters.phases] : undefined,
+        collapsedLaneIds: this._filters?.collapsedLaneIds ? [...this._filters.collapsedLaneIds] : undefined,
         query: this._filters?.query,
+        focusedItemId: this._filters?.focusedItemId,
+        groupBy: this._filters?.groupBy,
       },
       interactive: this._interactive,
       readonly: this._readonly,
@@ -1343,6 +1904,7 @@ export class HarmonogramBoard extends HTMLElement {
       action: 'undo',
       scale: this.currentScale,
     });
+    this.announce('Undo applied.');
     this.render();
   }
 
@@ -1363,12 +1925,15 @@ export class HarmonogramBoard extends HTMLElement {
       action: 'redo',
       scale: this.currentScale,
     });
+    this.announce('Redo applied.');
     this.render();
   }
 
   private createTimeline(viewModel: HarmonogramBoardViewModel): HTMLElement {
     const timeline = document.createElement('section');
     timeline.setAttribute('part', 'timeline');
+    timeline.setAttribute('role', 'region');
+    timeline.setAttribute('aria-label', 'Timeline');
 
     if (!viewModel.range || viewModel.timelineTicks.length === 0) {
       const empty = document.createElement('p');
@@ -1422,6 +1987,8 @@ export class HarmonogramBoard extends HTMLElement {
   private createDependencyOverlay(viewModel: HarmonogramBoardViewModel): HTMLElement {
     const overlay = document.createElement('section');
     overlay.setAttribute('part', 'dependency-overlay');
+    overlay.setAttribute('role', 'region');
+    overlay.setAttribute('aria-label', 'Dependency relationships');
 
     const header = document.createElement('header');
     header.setAttribute('part', 'dependency-header');
@@ -1583,6 +2150,7 @@ export class HarmonogramBoard extends HTMLElement {
     const row = document.createElement('article');
     row.setAttribute('part', 'lane-item');
     row.dataset.itemId = item.id;
+    row.setAttribute('role', 'listitem');
 
     const meta = document.createElement('div');
     meta.setAttribute('part', 'item-meta');
@@ -1630,6 +2198,13 @@ export class HarmonogramBoard extends HTMLElement {
 
     const track = document.createElement('div');
     track.setAttribute('part', 'item-track');
+    track.dataset.itemId = item.id;
+    track.dataset.selected = String(item.selected);
+    track.dataset.selectable = 'true';
+    track.title = `${item.label}: click a visible segment to select this item.`;
+    track.addEventListener('click', () => {
+      this.updateSelection(item.id);
+    });
     track.addEventListener('mouseenter', () => {
       this.dispatchBoardEvent<HarmonogramHoverEventDetail>('harmonogram-hover', { itemId: item.id });
     });
@@ -1643,7 +2218,9 @@ export class HarmonogramBoard extends HTMLElement {
       for (const segment of item.segments) {
         const segmentEl = document.createElement('span');
         segmentEl.setAttribute('part', 'segment');
+        segmentEl.dataset.itemId = item.id;
         segmentEl.dataset.segmentKind = segment.kind;
+        segmentEl.dataset.selected = String(item.selected);
         segmentEl.style.left = `${segment.startPercent}%`;
         segmentEl.style.width = `${segment.widthPercent}%`;
         segmentEl.title = `${segment.kind}: ${segment.start} -> ${segment.end}`;
@@ -1658,6 +2235,8 @@ export class HarmonogramBoard extends HTMLElement {
   private createLanes(viewModel: HarmonogramBoardViewModel): HTMLElement {
     const lanes = document.createElement('section');
     lanes.setAttribute('part', 'lanes');
+    lanes.setAttribute('role', 'list');
+    lanes.setAttribute('aria-label', 'Plan lanes');
 
     if (viewModel.lanes.length === 0) {
       const empty = document.createElement('p');
@@ -1671,24 +2250,58 @@ export class HarmonogramBoard extends HTMLElement {
       const laneEl = document.createElement('section');
       laneEl.setAttribute('part', 'lane');
       laneEl.dataset.laneId = lane.id;
+      laneEl.dataset.groupBy = lane.groupBy;
+      laneEl.dataset.collapsed = String(lane.collapsed);
+      laneEl.setAttribute('role', 'listitem');
 
       const laneHeader = document.createElement('header');
       laneHeader.setAttribute('part', 'lane-header');
+      laneHeader.id = `lane-header-${lane.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+
+      const identity = document.createElement('div');
+      identity.setAttribute('part', 'lane-identity');
 
       const laneLabel = document.createElement('h3');
       laneLabel.setAttribute('part', 'lane-label');
       laneLabel.textContent = lane.label;
+      laneLabel.style.paddingInlineStart = `${lane.depth * 1}rem`;
+      laneLabel.dataset.depth = String(lane.depth);
 
       const laneCount = document.createElement('span');
       laneCount.setAttribute('part', 'lane-count');
       laneCount.textContent = `${lane.itemCount} item${lane.itemCount === 1 ? '' : 's'}`;
 
-      laneHeader.append(laneLabel, laneCount);
+      identity.append(laneLabel, laneCount);
+      laneHeader.append(identity);
+
+      if (lane.collapsible) {
+        const toggleButton = document.createElement('button');
+        toggleButton.className = 'lane-toggle action-button';
+        toggleButton.type = 'button';
+        toggleButton.setAttribute('part', 'lane-collapse-toggle');
+        toggleButton.dataset.laneId = lane.id;
+        toggleButton.setAttribute('aria-expanded', String(!lane.collapsed));
+        toggleButton.textContent = lane.collapsed ? 'Expand' : 'Collapse';
+        toggleButton.addEventListener('click', () => {
+          this.toggleLaneCollapse(lane.id);
+        });
+        laneHeader.append(toggleButton);
+      }
 
       const laneGrid = document.createElement('div');
       laneGrid.setAttribute('part', 'lane-grid');
+      laneGrid.setAttribute('role', 'list');
+      laneGrid.setAttribute('aria-labelledby', laneHeader.id);
 
-      if (lane.items.length === 0) {
+      if (lane.collapsed) {
+        const collapsed = document.createElement('p');
+        collapsed.setAttribute('part', 'lane-empty');
+        collapsed.textContent =
+          lane.itemCount > 0
+            ? `Collapsed (${lane.itemCount} item${lane.itemCount === 1 ? '' : 's'} hidden)`
+            : 'Collapsed';
+        laneGrid.append(collapsed);
+      } else if (lane.items.length === 0) {
         const empty = document.createElement('p');
         empty.setAttribute('part', 'lane-empty');
         empty.textContent = 'No visible work items';
@@ -1697,6 +2310,13 @@ export class HarmonogramBoard extends HTMLElement {
         for (const item of lane.items) {
           laneGrid.append(this.createLaneItem(item));
         }
+      }
+
+      if (!lane.collapsed && lane.hiddenItemCount > 0) {
+        const hiddenNotice = document.createElement('p');
+        hiddenNotice.setAttribute('part', 'lane-empty');
+        hiddenNotice.textContent = `Rendering discipline active: showing ${lane.items.length} of ${lane.itemCount} items.`;
+        laneGrid.append(hiddenNotice);
       }
 
       laneEl.append(laneHeader, laneGrid);
@@ -1711,20 +2331,19 @@ export class HarmonogramBoard extends HTMLElement {
       return;
     }
 
-    const viewModel = buildBoardViewModel({
-      plan: this.activePlan,
-      view: this._view,
-      selection: this._selection,
-      filters: this._filters,
-      interactive: this._interactive,
-      readonly: this._readonly,
-    });
+    const viewModel = this.buildViewModel();
 
     const style = document.createElement('style');
     style.textContent = BOARD_STYLES;
 
     const container = document.createElement('section');
     container.setAttribute('part', 'container');
+    container.setAttribute('role', 'region');
+    container.setAttribute('aria-label', `${viewModel.title} board`);
+    container.tabIndex = 0;
+    container.addEventListener('keydown', (event) => {
+      this.handleBoardKeydown(event, viewModel);
+    });
 
     const header = document.createElement('header');
     header.setAttribute('part', 'header');
@@ -1742,6 +2361,7 @@ export class HarmonogramBoard extends HTMLElement {
     const summary = document.createElement('div');
     summary.setAttribute('part', 'summary');
     this.appendSummary(summary, `Scale: ${viewModel.scale}`);
+    this.appendSummary(summary, `Group: ${viewModel.groupBy}`);
     this.appendSummary(summary, `Lanes: ${viewModel.laneCount}`);
     this.appendSummary(summary, `Items: ${viewModel.visibleItemCount}/${viewModel.totalItemCount}`);
     this.appendSummary(summary, `Dependencies: ${viewModel.dependencyOverlay.paths.length}`);
@@ -1753,6 +2373,10 @@ export class HarmonogramBoard extends HTMLElement {
 
     if (viewModel.range) {
       this.appendSummary(summary, `Range: ${viewModel.range.start} -> ${viewModel.range.end}`);
+    }
+
+    if (viewModel.focusedItemId) {
+      this.appendSummary(summary, `Focus: ${viewModel.focusedItemId}`);
     }
 
     const actions = document.createElement('footer');
@@ -1817,7 +2441,75 @@ export class HarmonogramBoard extends HTMLElement {
       this.exportState();
     });
 
-    actions.append(createButton, undoButton, redoButton, shiftButton, fitButton, exportButton);
+    const exportJsonButton = document.createElement('button');
+    exportJsonButton.className = 'action-button';
+    exportJsonButton.type = 'button';
+    exportJsonButton.setAttribute('part', 'export-json');
+    exportJsonButton.disabled = !this.activePlan;
+    exportJsonButton.textContent = 'Export JSON';
+    exportJsonButton.addEventListener('click', () => {
+      this.exportJson();
+    });
+
+    const exportCsvButton = document.createElement('button');
+    exportCsvButton.className = 'action-button';
+    exportCsvButton.type = 'button';
+    exportCsvButton.setAttribute('part', 'export-csv');
+    exportCsvButton.disabled = !this.activePlan;
+    exportCsvButton.textContent = 'Export CSV';
+    exportCsvButton.addEventListener('click', () => {
+      this.exportCsv();
+    });
+
+    const exportPngButton = document.createElement('button');
+    exportPngButton.className = 'action-button';
+    exportPngButton.type = 'button';
+    exportPngButton.setAttribute('part', 'export-png');
+    exportPngButton.disabled = !this.activePlan;
+    exportPngButton.textContent = 'Export PNG';
+    exportPngButton.addEventListener('click', () => {
+      this.exportPng();
+    });
+
+    const clearFocusButton = document.createElement('button');
+    clearFocusButton.className = 'action-button';
+    clearFocusButton.type = 'button';
+    clearFocusButton.setAttribute('part', 'clear-focus');
+    clearFocusButton.disabled = !viewModel.focusedItemId;
+    clearFocusButton.textContent = 'Clear focus';
+    clearFocusButton.addEventListener('click', () => {
+      this.clearFocus();
+    });
+
+    const clearFiltersButton = document.createElement('button');
+    clearFiltersButton.className = 'action-button';
+    clearFiltersButton.type = 'button';
+    clearFiltersButton.setAttribute('part', 'clear-filters');
+    clearFiltersButton.disabled = !this._filters;
+    clearFiltersButton.textContent = 'Clear filters';
+    clearFiltersButton.addEventListener('click', () => {
+      this.clearFilters();
+    });
+
+    const announcer = document.createElement('div');
+    announcer.setAttribute('part', 'announcer');
+    announcer.setAttribute('aria-live', 'polite');
+    announcer.setAttribute('aria-atomic', 'true');
+    announcer.textContent = this._announcement;
+
+    actions.append(
+      createButton,
+      undoButton,
+      redoButton,
+      shiftButton,
+      fitButton,
+      exportButton,
+      exportJsonButton,
+      exportCsvButton,
+      exportPngButton,
+      clearFocusButton,
+      clearFiltersButton,
+    );
     container.append(
       header,
       summary,
@@ -1825,6 +2517,7 @@ export class HarmonogramBoard extends HTMLElement {
       this.createDependencyOverlay(viewModel),
       this.createLanes(viewModel),
       actions,
+      announcer,
     );
     this.shadowRoot.replaceChildren(style, container);
   }

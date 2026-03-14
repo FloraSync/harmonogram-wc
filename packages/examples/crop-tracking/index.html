@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonogram Crop Tracking Reference</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 1rem;
+        color: #0f172a;
+        font-family: "Gill Sans", "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          linear-gradient(145deg, rgba(22, 101, 52, 0.1), rgba(2, 132, 199, 0.08)),
+          #f8fafc;
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .controls button {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        font: inherit;
+        padding: 0.4rem 0.65rem;
+        cursor: pointer;
+      }
+
+      .meta {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 0.65rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      #event-log {
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.84rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Crop Tracking Reference (Farm Group -> Field -> Operation)</h1>
+      <p>
+        Shows planned, actual, and projected operation segments plus seasonal windows without any crop-only core API forks.
+      </p>
+
+      <section class="controls">
+        <button data-group-by="lane" data-e2e="crop-group-lane" type="button">Group by lane</button>
+        <button data-group-by="phase" data-e2e="crop-group-phase" type="button">Group by phase</button>
+        <button data-group-by="resource" data-e2e="crop-group-resource" type="button">Group by resource</button>
+      </section>
+
+      <section class="meta">
+        <div><strong>Current grouping:</strong> <span id="mode-label" data-e2e="crop-mode-label">phase</span></div>
+        <div id="event-log" data-e2e="crop-event-log">Waiting for interactions...</div>
+      </section>
+
+      <harmonogram-board id="crop-board" data-e2e="crop-board"></harmonogram-board>
+    </main>
+
+    <script type="module">
+      import(`./main.js?v=${Date.now()}`);
+    </script>
+  </body>
+</html>

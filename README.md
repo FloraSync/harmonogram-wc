@@ -26,6 +26,7 @@ WP0 introduces a multi-package workspace scaffold:
 - `npm run build`
 - `npm run lint`
 - `npm run test`
+- `npm run test:e2e`
 - `npm run typecheck`
 
 All root commands delegate to workspace packages.

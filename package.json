@@ -21,19 +21,28 @@
   "scripts": {
     "build": "npm run build --workspace @harmonogram/core --workspace @harmonogram/elements",
     "dev": "npm run dev --workspace @harmonogram/elements",
+    "examples:serve": "npm run build --workspace @harmonogram/elements && http-server . -p 4173 -c-1",
+    "examples:preview": "npm run examples:serve",
     "lint": "npm run lint --workspace @harmonogram/core --workspace @harmonogram/elements",
     "test": "npm run test --workspace @harmonogram/core --workspace @harmonogram/elements",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed --project=chromium",
     "test:watch": "npm run test:watch --workspace @harmonogram/elements",
     "typecheck": "npm run typecheck --workspace @harmonogram/core --workspace @harmonogram/elements"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@open-wc/testing": "^4.0.0",
+    "@playwright/test": "^1.58.2",
     "@web/dev-server-esbuild": "^1.0.5",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
+    "esbuild": "^0.27.0",
     "eslint": "^10.0.3",
+    "htm": "^3.1.1",
+    "http-server": "^14.1.1",
     "lit": "^3.3.2",
+    "preact": "^10.28.4",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"

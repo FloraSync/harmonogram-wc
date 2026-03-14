@@ -103,6 +103,134 @@ function createPlan(): Plan {
   };
 }
 
+function createOrganizingPlan(): Plan {
+  return {
+    id: 'plan-organizing',
+    name: 'Organizing Plan',
+    timeZone: 'UTC',
+    range: {
+      start: '2026-03-01T00:00:00.000Z',
+      end: '2026-03-05T00:00:00.000Z',
+    },
+    lanes: [
+      {
+        id: 'lane-a',
+        label: 'Field A',
+        kind: 'field',
+        collapsed: false,
+      },
+      {
+        id: 'lane-a1',
+        label: 'Field A / North',
+        parentId: 'lane-a',
+        kind: 'field-block',
+        collapsed: false,
+      },
+      {
+        id: 'lane-a2',
+        label: 'Field A / South',
+        parentId: 'lane-a',
+        kind: 'field-block',
+        collapsed: false,
+      },
+      {
+        id: 'lane-b',
+        label: 'Field B',
+        kind: 'field',
+        collapsed: false,
+      },
+    ],
+    items: [
+      {
+        id: 'item-plant',
+        laneId: 'lane-a1',
+        label: 'Planting pass',
+        kind: 'task',
+        segments: [
+          {
+            id: 'seg-plant',
+            workItemId: 'item-plant',
+            start: '2026-03-01T00:00:00.000Z',
+            end: '2026-03-01T10:00:00.000Z',
+            segmentKind: 'planned',
+            locked: false,
+          },
+        ],
+        resourceAssignments: [{ resourceId: 'res-tractor' }],
+        metadata: {
+          phase: 'Planting',
+        },
+      },
+      {
+        id: 'item-irrigate',
+        laneId: 'lane-a2',
+        label: 'Irrigation setup',
+        kind: 'task',
+        segments: [
+          {
+            id: 'seg-irrigate',
+            workItemId: 'item-irrigate',
+            start: '2026-03-02T00:00:00.000Z',
+            end: '2026-03-02T10:00:00.000Z',
+            segmentKind: 'planned',
+            locked: false,
+          },
+        ],
+        resourceAssignments: [{ resourceId: 'res-irrigation' }],
+        metadata: {
+          phase: 'Irrigation',
+        },
+      },
+      {
+        id: 'item-scout',
+        laneId: 'lane-b',
+        label: 'Scout pass',
+        kind: 'task',
+        segments: [
+          {
+            id: 'seg-scout',
+            workItemId: 'item-scout',
+            start: '2026-03-03T00:00:00.000Z',
+            end: '2026-03-03T10:00:00.000Z',
+            segmentKind: 'planned',
+            locked: false,
+          },
+        ],
+        resourceAssignments: [],
+        metadata: {
+          phase: 'Scouting',
+        },
+      },
+    ],
+    dependencies: [
+      {
+        id: 'dep-organize',
+        fromId: 'item-plant',
+        toId: 'item-irrigate',
+        relationship: 'FS',
+        lag: 0,
+        hard: true,
+      },
+    ],
+    resources: [
+      {
+        id: 'res-tractor',
+        label: 'Tractor Crew',
+        kind: 'crew',
+        capacity: 1,
+      },
+      {
+        id: 'res-irrigation',
+        label: 'Irrigation Crew',
+        kind: 'crew',
+        capacity: 1,
+      },
+    ],
+    calendars: [],
+    markers: [],
+  };
+}
+
 function getItemButtons(board: HarmonogramBoard): HTMLButtonElement[] {
   return [...board.shadowRoot!.querySelectorAll<HTMLButtonElement>('[part="item-select"]')];
 }
@@ -115,6 +243,16 @@ function getSegmentTitles(board: HarmonogramBoard, itemId: string): string[] {
   return [
     ...board.shadowRoot!.querySelectorAll<HTMLElement>(`[part="lane-item"][data-item-id="${itemId}"] [part="segment"]`),
   ].map((segment) => segment.title);
+}
+
+function getItemSegments(board: HarmonogramBoard, itemId: string): HTMLElement[] {
+  return [
+    ...board.shadowRoot!.querySelectorAll<HTMLElement>(`[part="lane-item"][data-item-id="${itemId}"] [part="segment"]`),
+  ];
+}
+
+function getItemTrack(board: HarmonogramBoard, itemId: string): HTMLElement | null {
+  return board.shadowRoot!.querySelector<HTMLElement>(`[part="item-track"][data-item-id="${itemId}"]`);
 }
 
 function getCreateButton(board: HarmonogramBoard): HTMLButtonElement | null {
@@ -135,6 +273,18 @@ function getDependencyLinks(board: HarmonogramBoard): SVGPathElement[] {
 
 function getDependencyHitboxes(board: HarmonogramBoard): SVGPathElement[] {
   return [...board.shadowRoot!.querySelectorAll<SVGPathElement>('[part="dependency-hitbox"]')];
+}
+
+function getContainer(board: HarmonogramBoard): HTMLElement | null {
+  return board.shadowRoot!.querySelector<HTMLElement>('[part="container"]');
+}
+
+function getLaneLabels(board: HarmonogramBoard): string[] {
+  return [...board.shadowRoot!.querySelectorAll<HTMLElement>('[part="lane-label"]')].map((label) => label.textContent ?? '');
+}
+
+function getLaneCollapseButton(board: HarmonogramBoard, laneId: string): HTMLButtonElement | null {
+  return board.shadowRoot!.querySelector<HTMLButtonElement>(`[part="lane-collapse-toggle"][data-lane-id="${laneId}"]`);
 }
 
 describe('harmonogram-board', () => {
@@ -184,6 +334,122 @@ describe('harmonogram-board', () => {
     expect(segmentKinds).to.include.members(['planned', 'actual']);
   });
 
+  it('supports hierarchy grouping with collapse and expand controls', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createOrganizingPlan();
+    el.setGroupBy('hierarchy');
+
+    expect(getLaneLabels(el)).to.deep.equal(['Field A', 'Field A / North', 'Field A / South', 'Field B']);
+
+    const collapseButton = getLaneCollapseButton(el, 'lane-a');
+    expect(collapseButton).to.exist;
+    collapseButton!.click();
+
+    expect(getLaneLabels(el)).to.deep.equal(['Field A', 'Field B']);
+
+    const expandButton = getLaneCollapseButton(el, 'lane-a');
+    expect(expandButton).to.exist;
+    expect(expandButton!.getAttribute('aria-expanded')).to.equal('false');
+    expandButton!.click();
+
+    expect(getLaneLabels(el)).to.deep.equal(['Field A', 'Field A / North', 'Field A / South', 'Field B']);
+  });
+
+  it('supports resource/phase reorganization plus search and focus tools', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createOrganizingPlan();
+
+    el.filters = { groupBy: 'resource' };
+    expect(getLaneLabels(el)).to.deep.equal(['Irrigation Crew', 'Tractor Crew', 'Unassigned resource']);
+
+    el.filters = { groupBy: 'phase', phases: ['planting'] };
+    expect(getLaneLabels(el)).to.deep.equal(['Planting']);
+    expect(getItemButtons(el)).to.have.length(1);
+    expect(getItemButtons(el)[0].textContent).to.equal('Planting pass');
+
+    el.clearFilters();
+    el.setSearchQuery('scout');
+    expect(getItemButtons(el)).to.have.length(1);
+    expect(getItemButtons(el)[0].textContent).to.equal('Scout pass');
+
+    el.clearFilters();
+    el.focusItem('item-plant');
+    expect(getItemButtons(el)).to.have.length(2);
+    expect(el.shadowRoot!.querySelector('[part="summary"]')!.textContent).to.contain('Focus: item-plant');
+
+    const clearFocusButton = el.shadowRoot!.querySelector<HTMLButtonElement>('[part="clear-focus"]');
+    expect(clearFocusButton).to.exist;
+    expect(clearFocusButton!.disabled).to.equal(false);
+    clearFocusButton!.click();
+
+    expect(getItemButtons(el)).to.have.length(3);
+    expect(el.shadowRoot!.querySelector('[part="summary"]')!.textContent).to.not.contain('Focus: item-plant');
+  });
+
+  it('supports keyboard navigation and edit shortcuts for essential flows', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createPlan();
+    el.interactive = true;
+
+    const container = getContainer(el);
+    expect(container).to.exist;
+
+    container!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }));
+    expect(getItemButtons(el)[0].getAttribute('aria-pressed')).to.equal('true');
+
+    container!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }));
+    expect(getItemButtons(el)[1].getAttribute('aria-pressed')).to.equal('true');
+
+    const updateEventPromise = oneEvent(el, 'harmonogram-edit-request') as Promise<
+      CustomEvent<HarmonogramEditRequestEventDetail>
+    >;
+    container!.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true, composed: true }));
+    const updateEvent = await updateEventPromise;
+    expect(updateEvent.detail.action).to.equal('update');
+    expect(updateEvent.detail.itemId).to.equal('item-2');
+
+    const deleteEventPromise = oneEvent(el, 'harmonogram-edit-request') as Promise<
+      CustomEvent<HarmonogramEditRequestEventDetail>
+    >;
+    container!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, composed: true }));
+    const deleteEvent = await deleteEventPromise;
+    expect(deleteEvent.detail.action).to.equal('delete');
+    expect(deleteEvent.detail.itemId).to.equal('item-2');
+  });
+
+  it('adds accessibility semantics and live announcements', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createPlan();
+
+    const container = getContainer(el);
+    expect(container).to.exist;
+    expect(container!.getAttribute('role')).to.equal('region');
+    expect(container!.getAttribute('aria-label')).to.equal('Season Plan board');
+
+    const lanes = el.shadowRoot!.querySelector('[part="lanes"]');
+    const timeline = el.shadowRoot!.querySelector('[part="timeline"]');
+    const dependencies = el.shadowRoot!.querySelector('[part="dependency-overlay"]');
+    const announcer = el.shadowRoot!.querySelector('[part="announcer"]');
+
+    expect(lanes).to.exist;
+    expect(lanes!.getAttribute('role')).to.equal('list');
+    expect(timeline).to.exist;
+    expect(timeline!.getAttribute('role')).to.equal('region');
+    expect(dependencies).to.exist;
+    expect(dependencies!.getAttribute('role')).to.equal('region');
+    expect(announcer).to.exist;
+    expect(announcer!.getAttribute('aria-live')).to.equal('polite');
+    expect(announcer!.getAttribute('aria-atomic')).to.equal('true');
+
+    el.focusItem('item-1');
+    expect((el.shadowRoot!.querySelector('[part="announcer"]')?.textContent ?? '').toLowerCase()).to.contain('focused item');
+
+    const refreshedContainer = getContainer(el);
+    expect(refreshedContainer).to.exist;
+    refreshedContainer!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    expect((el.shadowRoot!.querySelector('[part="announcer"]')?.textContent ?? '').toLowerCase()).to.contain('focus cleared');
+  });
+
   it('renders dependency overlay paths with relationship and critical metadata', async () => {
     const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
     el.plan = createPlan();
@@ -209,6 +475,20 @@ describe('harmonogram-board', () => {
 
     expect(selectEvent.detail.itemId).to.equal('item-1');
     expect(selectEvent.detail.selection.itemIds).to.deep.equal(['item-1']);
+  });
+
+  it('allows selecting an item directly from a visible segment track', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createPlan();
+
+    const selectEventPromise = oneEvent(el, 'harmonogram-select') as Promise<CustomEvent<HarmonogramSelectEventDetail>>;
+    getItemSegments(el, 'item-1')[0].dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const selectEvent = await selectEventPromise;
+
+    expect(selectEvent.detail.itemId).to.equal('item-1');
+    expect(selectEvent.detail.selection.itemIds).to.deep.equal(['item-1']);
+    expect(getItemButtons(el)[0].getAttribute('aria-pressed')).to.equal('true');
+    expect(getItemTrack(el, 'item-1')?.dataset.selected).to.equal('true');
   });
 
   it('dispatches harmonogram-hover for dependency inspection', async () => {
@@ -297,6 +577,32 @@ describe('harmonogram-board', () => {
     expect(editEvent.detail.action).to.equal('update');
     expect(editEvent.detail.itemId).to.equal('item-1');
     expect(editEvent.detail.mode).to.equal('controlled');
+  });
+
+  it('supports JSON, CSV, and PNG export flows', async () => {
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = createPlan();
+
+    const actionEvents: string[] = [];
+    el.addEventListener('harmonogram-action', (event) => {
+      const detail = (event as CustomEvent<{ action: string }>).detail;
+      actionEvents.push(detail.action);
+    });
+
+    const jsonPayload = el.exportJson();
+    const parsedJson = JSON.parse(jsonPayload) as { plan: Plan | null };
+    expect(parsedJson.plan?.id).to.equal('plan-1');
+
+    const csvPayload = el.exportCsv();
+    expect(csvPayload).to.contain('itemId,laneId,label,segmentId,segmentKind,start,end');
+    expect(csvPayload).to.contain('item-1');
+    expect(csvPayload).to.contain('seg-1');
+
+    const pngPayload = el.exportPng();
+    expect(pngPayload).to.be.a('string');
+    expect(pngPayload!).to.match(/^data:image\/png;base64,/);
+
+    expect(actionEvents).to.include.members(['export-json', 'export-csv', 'export-png']);
   });
 
   it('prevents edit requests in readonly mode', async () => {

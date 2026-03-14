@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonogram Framework Host Example</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 15% 10%, rgba(21, 128, 61, 0.12), transparent 35%),
+          radial-gradient(circle at 80% 80%, rgba(14, 116, 144, 0.14), transparent 40%),
+          #f8fafc;
+        color: #0f172a;
+      }
+
+      #app {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .controls button {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+        padding: 0.4rem 0.7rem;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .controls button:hover {
+        border-color: #0f766e;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "/node_modules/preact/dist/preact.module.js",
+          "preact/hooks": "/node_modules/preact/hooks/dist/hooks.module.js",
+          "htm": "/node_modules/htm/dist/htm.module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import(`./main.js?v=${Date.now()}`);
+    </script>
+  </body>
+</html>

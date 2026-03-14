@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonogram Use-Case Simulator</title>
+    <style>
+      :root {
+        --surface: #f7faf8;
+        --surface-strong: #ffffff;
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #cbd5e1;
+        --accent: #166534;
+        --accent-soft: #dcfce7;
+        --signal: #0e7490;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Avenir Next Condensed", "Futura PT", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 8% 12%, rgba(22, 101, 52, 0.18), transparent 34%),
+          radial-gradient(circle at 88% 88%, rgba(14, 116, 144, 0.14), transparent 36%),
+          linear-gradient(160deg, #f0fdf4 0%, #f8fafc 55%, #ecfeff 100%);
+        color: var(--ink);
+      }
+
+      .shell {
+        max-width: 1380px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        display: grid;
+        gap: 1.1rem;
+      }
+
+      header {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        backdrop-filter: blur(4px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.35rem, 2.1vw, 2rem);
+        letter-spacing: 0.02em;
+      }
+
+      header p {
+        margin: 0.45rem 0 0;
+        color: var(--muted);
+        max-width: 70ch;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(290px, 330px) 1fr;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface-strong);
+      }
+
+      .scenario-panel {
+        padding: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+        align-content: start;
+      }
+
+      .scenario-list {
+        display: grid;
+        gap: 0.42rem;
+      }
+
+      .scenario-button {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        color: inherit;
+        text-align: left;
+        padding: 0.55rem 0.6rem;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .scenario-button[data-active='true'] {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .scenario-title {
+        font-size: 0.95rem;
+        line-height: 1.2;
+        font-weight: 700;
+      }
+
+      .scenario-edge {
+        margin-top: 0.25rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.25;
+      }
+
+      .board-panel {
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+
+      .control-group {
+        display: grid;
+        gap: 0.25rem;
+      }
+
+      .control-group label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+
+      .control-group select {
+        min-width: 11rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0.38rem 0.45rem;
+        font: inherit;
+      }
+
+      .scenario-description {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      #event-log {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0.75rem;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.81rem;
+        min-height: 3.5rem;
+        white-space: pre-wrap;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 0.45rem 0.55rem;
+        text-align: left;
+      }
+
+      th {
+        background: #ecfeff;
+      }
+
+      @media (max-width: 980px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <h1>Harmonogram Use-Case Simulator</h1>
+        <p>
+          Six high-fidelity scheduling scenarios for evaluating flow harmony, hand-offs, bottlenecks, and resource timing.
+        </p>
+      </header>
+
+      <section class="workspace">
+        <aside class="panel scenario-panel">
+          <h2 style="margin: 0; font-size: 1rem;">Use Cases</h2>
+          <div id="scenario-list" class="scenario-list" data-e2e="scenario-list"></div>
+          <p id="scenario-edge" class="scenario-edge" data-e2e="scenario-edge">Select a scenario to load.</p>
+        </aside>
+
+        <section class="panel board-panel">
+          <div class="controls">
+            <div class="control-group">
+              <label for="scenario-select">Scenario</label>
+              <select id="scenario-select" data-e2e="scenario-select"></select>
+            </div>
+            <div class="control-group">
+              <label for="group-by-select">Group by</label>
+              <select id="group-by-select" data-e2e="group-by-select">
+                <option value="lane">lane</option>
+                <option value="hierarchy">hierarchy</option>
+                <option value="resource">resource</option>
+                <option value="phase">phase</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="scale-select">Scale</label>
+              <select id="scale-select" data-e2e="scale-select">
+                <option value="hour">hour</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+                <option value="season">season</option>
+              </select>
+            </div>
+          </div>
+
+          <p id="scenario-description" class="scenario-description" data-e2e="scenario-description"></p>
+
+          <harmonogram-board id="board" data-e2e="vanilla-board"></harmonogram-board>
+
+          <section>
+            <strong>Event log</strong>
+            <div id="event-log" data-e2e="vanilla-event-log">Waiting for interactions...</div>
+          </section>
+        </section>
+      </section>
+
+      <section class="panel" style="padding: 0.85rem;">
+        <h2 style="margin-top: 0; font-size: 1rem;">Why This Component Wins</h2>
+        <table data-e2e="comparison-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>GANTT Chart</th>
+              <th>Harmonogram Web Component</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Primary Focus</td>
+              <td>Terminal dates and milestones</td>
+              <td>Process flow and operational harmony</td>
+            </tr>
+            <tr>
+              <td>Resource View</td>
+              <td>Static allocation</td>
+              <td>Dynamic movement and hand-offs</td>
+            </tr>
+            <tr>
+              <td>Bottlenecks</td>
+              <td>Often hidden in slack time</td>
+              <td>Visually obvious as widening delays and collision zones</td>
+            </tr>
+            <tr>
+              <td>Complexity Fit</td>
+              <td>Simple waterfall plans</td>
+              <td>Complex, rhythmic, multi-actor operations</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script type="module">
+      import(`./main.js?v=${Date.now()}`);
+    </script>
+  </body>
+</html>
