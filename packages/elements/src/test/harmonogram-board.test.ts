@@ -386,6 +386,46 @@ describe('harmonogram-board', () => {
     expect(el.shadowRoot!.querySelector('[part="summary"]')!.textContent).to.not.contain('Focus: item-plant');
   });
 
+  it('focuses items safely when ids contain selector-sensitive characters', async () => {
+    const trickyItemId = 'item-"special"][focus';
+    const sourcePlan = createPlan();
+    const plan: Plan = {
+      ...sourcePlan,
+      items: sourcePlan.items.map((item) =>
+        item.id === 'item-1'
+          ? {
+              ...item,
+              id: trickyItemId,
+              segments: item.segments.map((segment) => ({
+                ...segment,
+                workItemId: trickyItemId,
+              })),
+            }
+          : item,
+      ),
+      dependencies: sourcePlan.dependencies.map((dependency) =>
+        dependency.fromId === 'item-1'
+          ? {
+              ...dependency,
+              fromId: trickyItemId,
+            }
+          : dependency,
+      ),
+    };
+
+    const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
+    el.plan = plan;
+
+    const selectEventPromise = oneEvent(el, 'harmonogram-select') as Promise<CustomEvent<HarmonogramSelectEventDetail>>;
+    expect(() => el.focusItem(trickyItemId)).to.not.throw();
+    const selectEvent = await selectEventPromise;
+
+    const targetButton = getItemButtons(el).find((button) => button.dataset.itemId === trickyItemId);
+    expect(selectEvent.detail.itemId).to.equal(trickyItemId);
+    expect(targetButton).to.exist;
+    expect(el.shadowRoot!.activeElement).to.equal(targetButton);
+  });
+
   it('supports keyboard navigation and edit shortcuts for essential flows', async () => {
     const el = await fixture<HarmonogramBoard>(html`<harmonogram-board></harmonogram-board>`);
     el.plan = createPlan();

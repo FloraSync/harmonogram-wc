@@ -106,6 +106,15 @@ export class HarmonogramWc extends LitElement {
     );
   }
 
+  private _handleTaskKeydown(event: KeyboardEvent, task: HarmonogramTask): void {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    this._handleTaskClick(task);
+  }
+
   override render(): unknown {
     return html`
       <div part="container">
@@ -121,11 +130,7 @@ export class HarmonogramWc extends LitElement {
                     aria-label=${task.label}
                     role="button"
                     tabindex="0"
-                    @keydown=${(e: KeyboardEvent) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        this._handleTaskClick(task);
-                      }
-                    }}
+                    @keydown=${(event: KeyboardEvent) => this._handleTaskKeydown(event, task)}
                   >
                     ${task.label}
                   </div>

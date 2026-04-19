@@ -33,9 +33,13 @@ describe('harmonogram-wc characterization', () => {
     });
 
     const taskEl = el.shadowRoot!.querySelector<HTMLElement>('[part="task"]');
-    taskEl!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    taskEl!.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    const spaceEvent = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    taskEl!.dispatchEvent(enterEvent);
+    taskEl!.dispatchEvent(spaceEvent);
 
     expect(dispatchedIds).to.deep.equal(['1', '1']);
+    expect(enterEvent.defaultPrevented).to.equal(true);
+    expect(spaceEvent.defaultPrevented).to.equal(true);
   });
 });

@@ -1314,13 +1314,9 @@ export class HarmonogramBoard extends HTMLElement {
 
   exportState(): HarmonogramBoardStateSnapshot {
     const snapshot = this.getStateSnapshot();
-    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
-      action: 'export-state',
-      scale: this.currentScale,
+    this.publishAction('export-state', 'Exported board state.', {
       state: snapshot,
     });
-    this.announce('Exported board state.');
-    this.render();
     return snapshot;
   }
 
@@ -1331,12 +1327,7 @@ export class HarmonogramBoard extends HTMLElement {
     };
     const output = JSON.stringify(payload, null, 2);
 
-    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
-      action: 'export-json',
-      scale: this.currentScale,
-    });
-    this.announce('Exported JSON payload.');
-    this.render();
+    this.publishAction('export-json', 'Exported JSON payload.');
     return output;
   }
 
@@ -1345,12 +1336,7 @@ export class HarmonogramBoard extends HTMLElement {
     const header = 'itemId,laneId,label,segmentId,segmentKind,start,end';
 
     if (!plan) {
-      this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
-        action: 'export-csv',
-        scale: this.currentScale,
-      });
-      this.announce('Exported CSV payload.');
-      this.render();
+      this.publishAction('export-csv', 'Exported CSV payload.');
       return `${header}\n`;
     }
 
@@ -1391,12 +1377,7 @@ export class HarmonogramBoard extends HTMLElement {
       }
     }
 
-    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
-      action: 'export-csv',
-      scale: this.currentScale,
-    });
-    this.announce('Exported CSV payload.');
-    this.render();
+    this.publishAction('export-csv', 'Exported CSV payload.');
     return `${rows.join('\n')}\n`;
   }
 
@@ -1404,12 +1385,7 @@ export class HarmonogramBoard extends HTMLElement {
     const viewModel = this.buildViewModel();
     const dataUrl = this.buildPngDataUrl(viewModel);
 
-    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
-      action: 'export-png',
-      scale: this.currentScale,
-    });
-    this.announce(dataUrl ? 'Exported PNG snapshot.' : 'PNG export unavailable.');
-    this.render();
+    this.publishAction('export-png', dataUrl ? 'Exported PNG snapshot.' : 'PNG export unavailable.');
 
     return dataUrl;
   }
@@ -1457,9 +1433,32 @@ export class HarmonogramBoard extends HTMLElement {
     this._announcement = message;
   }
 
+  private publishAction(
+    action: HarmonogramActionEventDetail['action'],
+    announcement: string,
+    details: Pick<HarmonogramActionEventDetail, 'itemId' | 'state'> = {},
+  ): void {
+    this.dispatchBoardEvent<HarmonogramActionEventDetail>('harmonogram-action', {
+      action,
+      scale: this.currentScale,
+      ...details,
+    });
+    this.announce(announcement);
+    this.render();
+  }
+
   private focusItemButton(itemId: string): void {
-    const button = this.shadowRoot?.querySelector<HTMLButtonElement>(`[part="item-select"][data-item-id="${itemId}"]`);
-    button?.focus();
+    const buttons = this.shadowRoot?.querySelectorAll<HTMLButtonElement>('[part="item-select"]');
+    if (!buttons) {
+      return;
+    }
+
+    for (const button of buttons) {
+      if (button.dataset.itemId === itemId) {
+        button.focus();
+        return;
+      }
+    }
   }
 
   private getFirstSelectedItemId(viewModel: HarmonogramBoardViewModel): string | null {
