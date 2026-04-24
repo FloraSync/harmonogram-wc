@@ -1,6 +1,7 @@
-export { HarmonogramWc } from './harmonogram-wc.js';
-export type { HarmonogramTask } from './harmonogram-wc.js';
-export { HarmonogramBoard } from './harmonogram-board.js';
+export { HarmonogramWc } from "./harmonogram-wc.js";
+export type { HarmonogramTask } from "./harmonogram-wc.js";
+export { HarmonogramBoard } from "./harmonogram-board.js";
+export type { Plan } from "@florasync/harmonogram-core";
 export {
   BOARD_GROUPING_MODES,
   TIMELINE_SCALES,
@@ -16,7 +17,7 @@ export {
   type HarmonogramBoardView,
   type HarmonogramBoardViewModel,
   type TimelineScale,
-} from './board-view-model.js';
+} from "./board-view-model.js";
 export type {
   HarmonogramActionEventDetail,
   HarmonogramBoardStateSnapshot,
@@ -26,4 +27,4 @@ export type {
   HarmonogramHoverEventDetail,
   HarmonogramRangeChangeEventDetail,
   HarmonogramSelectEventDetail,
-} from './harmonogram-board.js';
+} from "./harmonogram-board.js";

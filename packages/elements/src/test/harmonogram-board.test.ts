@@ -1,5 +1,5 @@
 import { expect, fixture, html, oneEvent } from '@open-wc/testing';
-import type { Plan } from '@harmonogram/core';
+import type { Plan } from '@florasync/harmonogram-core';
 import {
   HarmonogramBoard,
   type HarmonogramEditRequestEventDetail,

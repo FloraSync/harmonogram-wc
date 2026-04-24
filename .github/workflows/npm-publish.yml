@@ -1,0 +1,87 @@
+name: Publish (npm)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish to npm (main only)
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npm run playwright:install:deps
+
+      - name: Validate
+        run: npm run release:dry
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump minor release train
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          next_version="$(npm version minor --no-git-tag-version --no-workspaces-update)"
+          next_version="${next_version#v}"
+
+          npm version "$next_version" \
+            --workspace @florasync/harmonogram-core \
+            --workspace @florasync/harmonogram-elements \
+            --include-workspace-root=false \
+            --no-git-tag-version \
+            --no-workspaces-update
+
+          npm pkg set "dependencies.@florasync/harmonogram-core=$next_version" \
+            --workspace @florasync/harmonogram-elements
+
+          npm install --package-lock-only --ignore-scripts
+
+          git add package.json package-lock.json packages/core/package.json packages/elements/package.json
+          git commit -m "chore(release): v${next_version}"
+          git tag -a "v${next_version}" -m "v${next_version}"
+
+          echo "version=${next_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish core
+        run: npm publish --workspace @florasync/harmonogram-core --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish elements
+        run: npm publish --workspace @florasync/harmonogram-elements --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push commit and tags
+        run: git push --follow-tags

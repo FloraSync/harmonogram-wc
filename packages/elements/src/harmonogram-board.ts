@@ -1,4 +1,4 @@
-import type { DependencyRelationship, Plan, TimeRange } from '@harmonogram/core';
+import type { DependencyRelationship, Plan, TimeRange } from '@florasync/harmonogram-core';
 import {
   BOARD_GROUPING_MODES,
   TIMELINE_SCALES,

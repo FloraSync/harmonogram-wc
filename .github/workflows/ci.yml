@@ -34,8 +34,14 @@ jobs:
       - name: Unit and browser integration tests
         run: npm run test
 
+      - name: Package smoke test
+        run: npm run test:smoke
+
       - name: E2E tests
         run: npm run test:e2e
+
+      - name: Pack dry-run
+        run: npm run pack:dry
 
       - name: Upload Playwright report
         if: failure()

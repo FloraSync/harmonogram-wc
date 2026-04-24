@@ -7,8 +7,8 @@ import type {
   Segment,
   TimeRange,
   WorkItem,
-} from '@harmonogram/core';
-import { deriveHarmonyInsights, splitRangeByScale } from '@harmonogram/core';
+} from '@florasync/harmonogram-core';
+import { deriveHarmonyInsights, splitRangeByScale } from '@florasync/harmonogram-core';
 
 export const TIMELINE_SCALES = ['hour', 'day', 'week', 'month', 'season'] as const;
 export type TimelineScale = (typeof TIMELINE_SCALES)[number];

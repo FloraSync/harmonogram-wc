@@ -1,5 +1,5 @@
 import { expect } from '@open-wc/testing';
-import type { Plan } from '@harmonogram/core';
+import type { Plan } from '@florasync/harmonogram-core';
 import { buildBoardViewModel } from '../board-view-model.js';
 
 function createOrganizingPlan(): Plan {

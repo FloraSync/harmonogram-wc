@@ -15,6 +15,6 @@ await build({
   target: ['es2020'],
   legalComments: 'none',
   banner: {
-    js: '/* @harmonogram/elements browser bundle */',
+    js: '/* @florasync/harmonogram-elements browser bundle */',
   },
 });

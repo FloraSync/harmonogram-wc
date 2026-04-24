@@ -1,6 +1,6 @@
-# @harmonogram/examples
+# @florasync/harmonogram-examples
 
-Reference examples for the shared `@harmonogram/elements` public contract.
+Reference examples for the shared `@florasync/harmonogram-elements` public contract.
 
 ## Available examples
 
@@ -20,6 +20,7 @@ Dependency fixtures in these examples intentionally use non-lexicographic ids so
    - `http://localhost:4173/packages/examples/crop-tracking/index.html` (legacy)
 
 Notes:
+
 - Serving from any directory other than repo root can break `../../elements/dist/...` imports.
 - Framework-host imports Preact/HTM from `/node_modules/...`; run examples from repo root so those paths resolve.
 - If a page appears blank, hard-refresh once after starting the preview server.

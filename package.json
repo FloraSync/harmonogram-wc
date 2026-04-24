@@ -11,24 +11,41 @@
     "typescript"
   ],
   "license": "MIT",
-  "author": "codecastles-org",
+  "author": "FloraSync",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FloraSync/harmonogram-wc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FloraSync/harmonogram-wc/issues"
+  },
+  "homepage": "https://github.com/FloraSync/harmonogram-wc#readme",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
   "workspaces": [
     "packages/core",
     "packages/elements",
     "packages/examples"
   ],
   "scripts": {
-    "build": "npm run build --workspace @harmonogram/core --workspace @harmonogram/elements",
-    "dev": "npm run dev --workspace @harmonogram/elements",
-    "examples:serve": "npm run build --workspace @harmonogram/elements && http-server . -p 4173 -c-1",
+    "build": "npm run build --workspace @florasync/harmonogram-core --workspace @florasync/harmonogram-elements",
+    "dev": "npm run dev --workspace @florasync/harmonogram-elements",
+    "examples:serve": "npm run build --workspace @florasync/harmonogram-elements && http-server . -p 4173 -c-1",
     "examples:preview": "npm run examples:serve",
-    "lint": "npm run lint --workspace @harmonogram/core --workspace @harmonogram/elements",
-    "test": "npm run test --workspace @harmonogram/core --workspace @harmonogram/elements",
+    "lint": "npm run lint --workspace @florasync/harmonogram-core --workspace @florasync/harmonogram-elements",
+    "test": "npm run test --workspace @florasync/harmonogram-core --workspace @florasync/harmonogram-elements",
+    "test:smoke": "npm run test:smoke --workspace @florasync/harmonogram-elements",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed --project=chromium",
-    "test:watch": "npm run test:watch --workspace @harmonogram/elements",
-    "typecheck": "npm run typecheck --workspace @harmonogram/core --workspace @harmonogram/elements"
+    "test:watch": "npm run test:watch --workspace @florasync/harmonogram-elements",
+    "typecheck": "npm run typecheck --workspace @florasync/harmonogram-core && npm run build --workspace @florasync/harmonogram-core && npm run typecheck --workspace @florasync/harmonogram-elements",
+    "playwright:install": "playwright install chromium",
+    "playwright:install:deps": "playwright install --with-deps chromium",
+    "pack:dry": "npm run pack:dry --workspace @florasync/harmonogram-core --workspace @florasync/harmonogram-elements",
+    "release:dry": "npm run lint && npm run typecheck && npm run test && npm run test:smoke && npm run test:e2e && npm run pack:dry"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
