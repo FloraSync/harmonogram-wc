@@ -44,6 +44,7 @@
     "typecheck": "npm run typecheck --workspace @florasync/harmonogram-core && npm run build --workspace @florasync/harmonogram-core && npm run typecheck --workspace @florasync/harmonogram-elements",
     "playwright:install": "playwright install chromium",
     "playwright:install:deps": "playwright install --with-deps chromium",
+    "package:init": "node ./scripts/package-init.mjs",
     "pack:dry": "npm run pack:dry --workspace @florasync/harmonogram-core --workspace @florasync/harmonogram-elements",
     "release:dry": "npm run lint && npm run typecheck && npm run test && npm run test:smoke && npm run test:e2e && npm run pack:dry"
   },
